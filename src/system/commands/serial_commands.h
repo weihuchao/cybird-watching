@@ -6,7 +6,7 @@
 
 class SerialCommands {
 private:
-    static const int MAX_COMMANDS = 10;
+    static const int MAX_COMMANDS = 15;
 
     struct Command {
         String name;
@@ -53,4 +53,5 @@ private:
     void handleStatusCommand();
     void handleClearCommand();
     void handleTreeCommand(const String& param);
+    void handleBirdCommand(const String& param);
 };

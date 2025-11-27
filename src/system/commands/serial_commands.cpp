@@ -2,6 +2,16 @@
 #include "serial_commands.h"
 #include "log_manager.h"
 
+// 前向声明Bird Watching便捷函数
+namespace BirdWatching {
+    bool triggerBird();
+    void showBirdStatistics();
+    void listBirds();
+    bool isBirdManagerInitialized();
+    bool isAnimationPlaying();
+    int getStatisticsCount();
+}
+
 // 静态成员初始化
 SerialCommands* SerialCommands::instance = nullptr;
 
@@ -27,6 +37,7 @@ void SerialCommands::initialize() {
     registerCommand("status", "Show system status");
     registerCommand("clear", "Clear terminal screen");
     registerCommand("tree", "Show SD card directory tree structure [path] [levels]");
+    registerCommand("bird", "Bird watching commands (trigger, stats, help)");
 
     LOG_INFO("CMD", "Serial command system initialized");
     Serial.println("Serial command system ready. Type 'help' for available commands.");
@@ -83,6 +94,10 @@ void SerialCommands::handleInput() {
         }
         else if (command.equals("tree")) {
             handleTreeCommand(param);
+            commandFound = true;
+        }
+        else if (command.equals("bird")) {
+            handleBirdCommand(param);
             commandFound = true;
         }
 
@@ -327,6 +342,63 @@ void SerialCommands::setEnabled(bool enabled) {
 
 bool SerialCommands::isEnabled() const {
     return commandEnabled;
+}
+
+void SerialCommands::handleBirdCommand(const String& param) {
+    Serial.println("<<<RESPONSE_START>>>");
+
+    if (param.isEmpty() || param.equals("help")) {
+        Serial.println("Bird watching subcommands:");
+        Serial.println("  trigger    - Manually trigger a bird appearance");
+        Serial.println("  list       - List all available birds");
+        Serial.println("  stats      - Show bird watching statistics");
+        Serial.println("  status     - Show bird watching system status");
+        Serial.println("  help       - Show this help");
+        Serial.println("Examples:");
+        Serial.println("  bird trigger  - Trigger a random bird");
+        Serial.println("  bird list     - List all birds");
+        Serial.println("  bird stats    - Show statistics");
+        Serial.println("  bird status   - Show system status");
+    }
+    else if (param.equals("trigger")) {
+        Serial.println("Triggering bird appearance...");
+        if (BirdWatching::triggerBird()) {
+            Serial.println("Bird triggered successfully!");
+        } else {
+            Serial.println("Failed to trigger bird. Check if system is initialized.");
+        }
+    }
+    else if (param.equals("list")) {
+        Serial.println("=== Available Birds ===");
+        BirdWatching::listBirds();
+        Serial.println("=== End of List ===");
+    }
+    else if (param.equals("stats")) {
+        Serial.println("=== Bird Watching Statistics ===");
+        BirdWatching::showBirdStatistics();
+        Serial.println("=== End of Statistics ===");
+    }
+    else if (param.equals("status")) {
+        Serial.println("=== Bird Watching System Status ===");
+        if (BirdWatching::isBirdManagerInitialized()) {
+            Serial.println("Bird Manager: Initialized");
+            Serial.println("Animation System: " + String(BirdWatching::isAnimationPlaying() ? "Playing" : "Idle"));
+            Serial.println("Statistics Records: " + String(BirdWatching::getStatisticsCount()));
+        } else {
+            Serial.println("Bird Manager: NOT INITIALIZED");
+        }
+        Serial.println("=== End Status ===");
+    }
+    else {
+        Serial.println("Unknown bird subcommand: " + param);
+        Serial.println("Use 'bird help' for available subcommands");
+    }
+
+    Serial.println("<<<RESPONSE_END>>>");
+
+    if (logManager) {
+        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "Bird command executed: " + param);
+    }
 }
 
 SerialCommands::~SerialCommands() {

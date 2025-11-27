@@ -109,7 +109,7 @@ class ConsoleInterface:
 
     def show_welcome(self) -> None:
         """显示欢迎信息"""
-        welcome_text = "CybirdWatching CLI - 跨平台命令行工具 v1.0"
+        welcome_text = "CybirdWatching CLI - 跨平台命令行工具 v1.1"
 
         if self.console:
             panel = Panel(
@@ -128,15 +128,28 @@ class ConsoleInterface:
 === CybirdWatching CLI 帮助 ===
 
 设备命令 (发送到ESP32设备):
+
+📊 日志管理:
   log              - 显示最后20行日志
   log clear        - 清空日志文件
   log size         - 显示日志文件大小
   log lines N      - 显示最后N行日志 (1-500)
   log cat/export   - 显示完整日志文件内容
+
+🔧 系统状态:
   status           - 显示系统状态
   clear            - 清除设备终端屏幕
-  tree [path] [levels] - 显示SD卡目录树
   help             - 显示设备帮助
+
+📁 文件管理:
+  tree [path] [levels] - 显示SD卡目录树
+
+🐦 观鸟功能:
+  bird trigger     - 手动触发小鸟动画
+  bird list        - 显示可用小鸟列表
+  bird stats       - 显示观鸟统计信息
+  bird status      - 显示观鸟系统状态
+  bird help        - 显示观鸟命令帮助
 
 本地命令:
   help             - 显示此CLI帮助
@@ -144,6 +157,7 @@ class ConsoleInterface:
   quit, exit       - 退出程序
   reconnect        - 重新连接设备
   cls              - 清除此终端屏幕
+  info             - 显示设备连接信息
 
 示例:
   [ON] CybirdWatching> log          # 显示设备日志
@@ -152,6 +166,10 @@ class ConsoleInterface:
   [ON] CybirdWatching> log lines 20 # 显示最后20行日志
   [ON] CybirdWatching> tree         # 显示SD卡目录树
   [ON] CybirdWatching> tree /config 2 # 显示config目录，2层深度
+  [ON] CybirdWatching> bird list    # 查看可用小鸟列表
+  [ON] CybirdWatching> bird trigger # 手动触发小鸟
+  [ON] CybirdWatching> bird stats   # 查看观鸟统计
+  [ON] CybirdWatching> bird status  # 查看观鸟系统状态
   [ON] CybirdWatching> test         # 测试通信
         """
 

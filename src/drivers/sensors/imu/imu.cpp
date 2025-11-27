@@ -67,6 +67,10 @@ void IMU::init()
 
 			Serial.println("  MPU6050 manual initialization complete");
 			initialized = true;
+
+			// 初始化手势检测状态
+			resetGestureState();
+			Serial.println("  Gesture detection initialized");
 		} else {
 			Serial.printf("  Unexpected WHO_AM_I value: 0x%02X\n", whoami);
 			initialized = false;
@@ -179,4 +183,122 @@ int16_t IMU::getGyroY()
 int16_t IMU::getGyroZ()
 {
 	return gz;
+}
+
+// 手势检测实现
+GestureType IMU::detectGesture()
+{
+	if (!initialized) {
+		return GESTURE_NONE;
+	}
+
+	unsigned long current_time = millis();
+
+	// 手势冷却时间，避免重复触发
+	if (current_time - last_gesture_time < 1000) {
+		return GESTURE_NONE;
+	}
+
+	GestureType detected = GESTURE_NONE;
+
+	// 检测摇动手势
+	if (isShaking()) {
+		detected = GESTURE_SHAKE;
+		Serial.println("Gesture detected: SHAKE");
+	}
+	// 检测前倾手势
+	else if (isForwardTilt()) {
+		detected = GESTURE_FORWARD_TILT;
+		Serial.println("Gesture detected: FORWARD_TILT");
+
+		// 记录倾斜序列，用于检测双向倾斜
+		if (was_backward_tilt && (current_time - last_gesture_time < 2000)) {
+			consecutive_tilt_count++;
+			if (consecutive_tilt_count >= 3) {
+				detected = GESTURE_DOUBLE_TILT;
+				Serial.println("Gesture detected: DOUBLE_TILT (sequence completed)");
+			}
+		} else {
+			was_forward_tilt = true;
+			was_backward_tilt = false;
+			consecutive_tilt_count = 1;
+		}
+	}
+	// 检测后倾手势
+	else if (isBackwardTilt()) {
+		detected = GESTURE_BACKWARD_TILT;
+		Serial.println("Gesture detected: BACKWARD_TILT");
+
+		// 记录倾斜序列
+		if (was_forward_tilt && (current_time - last_gesture_time < 2000)) {
+			consecutive_tilt_count++;
+			if (consecutive_tilt_count >= 3) {
+				detected = GESTURE_DOUBLE_TILT;
+				Serial.println("Gesture detected: DOUBLE_TILT (sequence completed)");
+			}
+		} else {
+			was_backward_tilt = true;
+			was_forward_tilt = false;
+			consecutive_tilt_count = 1;
+		}
+	}
+
+	// 更新手势时间
+	if (detected != GESTURE_NONE) {
+		last_gesture_time = current_time;
+	}
+
+	return detected;
+}
+
+// 检测摇动手势
+bool IMU::isShaking()
+{
+	// 简单的震动检测：加速度变化率
+	static int16_t last_ax = 0, last_ay = 0, last_az = 0;
+
+	int16_t delta_ax = abs(ax - last_ax);
+	int16_t delta_ay = abs(ay - last_ay);
+	int16_t delta_az = abs(az - last_az);
+
+	last_ax = ax;
+	last_ay = ay;
+	last_az = az;
+
+	// 如果加速度变化很大，认为是摇动
+	if (delta_ax > 8000 || delta_ay > 8000 || delta_az > 8000) {
+		shake_counter++;
+		if (shake_counter > 3) {
+			shake_counter = 0;
+			return true;
+		}
+	} else {
+		shake_counter = 0;
+	}
+
+	return false;
+}
+
+// 检测前倾手势
+bool IMU::isForwardTilt()
+{
+	// 前倾：Y轴负值较大
+	return (ay < -5000);
+}
+
+// 检测后倾手势
+bool IMU::isBackwardTilt()
+{
+	// 后倾：Y轴正值较大
+	return (ay > 5000);
+}
+
+// 重置手势状态
+void IMU::resetGestureState()
+{
+	last_gesture_time = 0;
+	shake_counter = 0;
+	was_forward_tilt = false;
+	was_backward_tilt = false;
+	consecutive_tilt_count = 0;
 }

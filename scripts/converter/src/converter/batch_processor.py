@@ -54,7 +54,7 @@ class BatchProcessor:
 
     @staticmethod
     def get_output_path(input_path: Path, output_dir: Path,
-                       extension: str = '.rgb565') -> Path:
+                       extension: str = '.bin') -> Path:
         """
         获取输出文件路径，保持相对目录结构
 

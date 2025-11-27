@@ -11,6 +11,7 @@
 #include "applications/gui/core/gui_guider.h"
 #include "system/logging/log_manager.h"
 #include "system/commands/serial_commands.h"
+#include "applications/modules/bird_watching/core/bird_watching.h"
 
 /*** Component objects ***/
 Display screen;
@@ -99,6 +100,14 @@ void setup()
     LOG_INFO("MAIN", "GUI created");
 //    setup_ui(&guider_ui);
 
+    /*** Init Bird Watching System ***/
+    LOG_INFO("MAIN", "Initializing Bird Watching System...");
+    if (BirdWatching::initializeBirdWatching()) {
+        LOG_INFO("MAIN", "Bird Watching System initialized successfully");
+    } else {
+        LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
+    }
+
     LOG_INFO("MAIN", "Setup completed, entering loop...");
 }
 
@@ -113,6 +122,9 @@ void loop()
 
     // 200 means update IMU data every 200ms
     mpu.update(200);
+
+    // 更新Bird Watching系统
+    BirdWatching::updateBirdWatching();
 
     // 处理串口命令
     SerialCommands::getInstance()->handleInput();

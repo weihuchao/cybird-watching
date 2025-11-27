@@ -164,7 +164,7 @@ class CommandExecutor:
 
         # 设备命令列表
         device_commands = [
-            'help', 'log', 'status', 'clear', 'tree'
+            'help', 'log', 'status', 'clear', 'tree', 'bird'
         ]
 
         formatted_command = self.format_command(command)
@@ -237,6 +237,10 @@ class CommandExecutor:
             'status - 显示系统状态',
             'clear - 清除终端屏幕',
             'tree [path] [levels] - 显示SD卡目录树',
+            'bird trigger - 手动触发小鸟动画',
+            'bird stats - 显示观鸟统计信息',
+            'bird reset - 重置观鸟统计数据',
+            'bird list - 显示可用小鸟列表',
             'test - 测试基本通信（无响应标记）'
         ]
 
@@ -249,3 +253,13 @@ class CommandExecutor:
             return 'log', parts[1]
         else:
             return 'log', ' '.join(parts[1:])
+
+    def parse_bird_subcommand(self, command: str) -> tuple:
+        """解析bird子命令"""
+        parts = command.strip().split()
+        if len(parts) == 1:
+            return 'bird', 'help'  # 默认显示bird帮助
+        elif len(parts) == 2:
+            return 'bird', parts[1]
+        else:
+            return 'bird', ' '.join(parts[1:])

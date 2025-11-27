@@ -1,0 +1,294 @@
+#include "bird_manager.h"
+#include "system/logging/log_manager.h"
+#include "drivers/sensors/imu/imu.h"
+#include <cstdlib>
+#include <ctime>
+
+namespace BirdWatching {
+
+BirdManager::BirdManager()
+    : initialized_(false)
+    , animation_(nullptr)
+    , selector_(nullptr)
+    , statistics_(nullptr)
+    , last_auto_trigger_time_(0)
+    , last_stats_save_time_(0)
+    , system_start_time_(0)
+{
+}
+
+BirdManager::~BirdManager() {
+    if (statistics_) {
+        statistics_->saveToFile();
+        delete statistics_;
+    }
+    if (animation_) {
+        delete animation_;
+    }
+    if (selector_) {
+        delete selector_;
+    }
+}
+
+bool BirdManager::initialize(lv_obj_t* display_obj) {
+    LOG_INFO("BIRD", "Initializing Bird Watching Manager...");
+
+    // 初始化随机数生成器
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+    // 记录系统启动时间
+    system_start_time_ = getCurrentTime();
+    last_auto_trigger_time_ = system_start_time_;
+    last_stats_save_time_ = system_start_time_;
+
+    // 初始化各个子系统
+    if (!initializeSubsystems(display_obj)) {
+        LOG_ERROR("BIRD", "Failed to initialize bird watching subsystems");
+        return false;
+    }
+
+    initialized_ = true;
+    LOG_INFO("BIRD", "Bird Watching Manager initialized successfully");
+    LOG_INFO("BIRD", "Auto trigger interval configured");
+    LOG_INFO("BIRD", "Gesture trigger enabled");
+
+    return true;
+}
+
+void BirdManager::update() {
+    if (!initialized_) {
+        return;
+    }
+
+    // 处理自动触发
+    handleAutoTrigger();
+
+    // 更新手势检测
+    if (config_.enable_gesture_trigger) {
+        updateGestureDetection();
+    }
+
+    // 定期保存统计数据
+    saveStatisticsIfNeeded();
+}
+
+bool BirdManager::triggerBird(TriggerType trigger_type) {
+    if (!initialized_) {
+        LOG_ERROR("BIRD", "Bird manager not initialized");
+        return false;
+    }
+
+    if (isPlaying()) {
+        LOG_DEBUG("BIRD", "Bird animation already playing, stopping and restarting");
+        // 停止当前动画，然后继续触发新的
+        animation_->stop();
+    }
+
+    const char* trigger_names[] = {"auto", "manual", "gesture"};
+    LOG_INFO("BIRD", "Bird triggered successfully");
+
+    return playRandomBird();
+}
+
+void BirdManager::onGestureEvent(int gesture_type) {
+    if (!config_.enable_gesture_trigger) {
+        return;
+    }
+
+    switch (gesture_type) {
+        case 0: // 向前倾斜 - 触发小鸟
+            LOG_DEBUG("BIRD", "Forward tilt detected, triggering bird");
+            triggerBird(TRIGGER_GESTURE);
+            break;
+
+        case 1: // 向后倾斜 - 显示统计
+            LOG_DEBUG("BIRD", "Backward tilt detected, showing statistics");
+            showStatistics();
+            break;
+
+        case 2: // 摇动 - 随机触发
+            LOG_DEBUG("BIRD", "Shake detected, random triggering");
+            triggerBird(TRIGGER_GESTURE);
+            break;
+
+        default:
+            LOG_DEBUG("BIRD", "Unknown gesture detected");
+            break;
+    }
+}
+
+void BirdManager::showStatistics() {
+    if (!statistics_) {
+        LOG_ERROR("BIRD", "Statistics system not available");
+        return;
+    }
+
+    statistics_->printStats();
+}
+
+void BirdManager::setConfig(const BirdConfig& config) {
+    config_ = config;
+    LOG_INFO("BIRD", "Bird manager configuration updated");
+}
+
+void BirdManager::saveConfig() {
+    // TODO: 实现配置保存
+    LOG_INFO("BIRD", "Configuration saving not yet implemented");
+}
+
+bool BirdManager::initializeSubsystems(lv_obj_t* display_obj) {
+    // 初始化动画播放器
+    animation_ = new BirdAnimation();
+    if (!animation_ || !animation_->init(display_obj)) {
+        LOG_ERROR("BIRD", "Failed to initialize bird animation system");
+        return false;
+    }
+
+    // 初始化小鸟选择器
+    selector_ = new BirdSelector();
+    if (!selector_ || !selector_->initialize("/configs/bird_config.json")) {
+        LOG_ERROR("BIRD", "Failed to initialize bird selector");
+        return false;
+    }
+
+    // 初始化统计系统
+    statistics_ = new BirdStatistics();
+    if (!statistics_ || !statistics_->initialize()) {
+        LOG_ERROR("BIRD", "Failed to initialize bird statistics");
+        return false;
+    }
+
+    LOG_INFO("BIRD", "All subsystems initialized successfully");
+    return true;
+}
+
+void BirdManager::handleAutoTrigger() {
+    uint32_t current_time = getCurrentTime();
+    uint32_t time_since_last_trigger = current_time - last_auto_trigger_time_;
+
+    if (time_since_last_trigger >= (config_.auto_trigger_interval * 1000)) {
+        LOG_DEBUG("BIRD", "Auto trigger time reached");
+        if (triggerBird(TRIGGER_AUTO)) {
+            last_auto_trigger_time_ = current_time;
+        }
+    }
+}
+
+bool BirdManager::playRandomBird() {
+    if (!selector_ || !animation_) {
+        LOG_ERROR("BIRD", "Bird selector or animation not available");
+        return false;
+    }
+
+    // 随机选择一只小鸟
+    BirdInfo bird = selector_->getRandomBird();
+    if (bird.id == 0) {
+        LOG_ERROR("BIRD", "Failed to select random bird");
+        return false;
+    }
+
+    // 加载小鸟动画
+    if (!animation_->loadBird(bird)) {
+        LOG_ERROR("BIRD", "Failed to load bird");
+        return false;
+    }
+
+    // 播放动画（循环播放）
+    animation_->startLoop();
+
+    // 记录统计数据
+    if (statistics_) {
+        statistics_->recordEncounter(bird.name);
+    }
+
+    LOG_INFO("BIRD", "Playing bird animation");
+    return true;
+}
+
+void BirdManager::updateGestureDetection() {
+    // 暂时简化手势检测，使用基本的前倾/后倾逻辑
+    // 这里直接调用现有的onGestureEvent方法，参数来自MPU的原始数据
+    // TODO: 完善完整的手势检测集成
+
+    // 暂时使用简化版本，定期触发前倾手势进行测试
+    static unsigned long last_test_time = 0;
+    unsigned long current_time = millis();
+
+    // 每10秒模拟一次前倾手势进行测试
+    if (current_time - last_test_time > 10000) {
+        LOG_INFO("BIRD", "Simulated forward tilt gesture for testing");
+        onGestureEvent(0); // 0 = 向前倾斜
+        last_test_time = current_time;
+    }
+}
+
+void BirdManager::handleGesture(GestureType gesture) {
+    switch (gesture) {
+        case GESTURE_FORWARD_TILT:
+            LOG_INFO("BIRD", "Forward tilt detected, triggering bird");
+            triggerBird(TRIGGER_GESTURE);
+            break;
+
+        case GESTURE_BACKWARD_TILT:
+            LOG_INFO("BIRD", "Backward tilt detected, showing statistics");
+            showStatistics();
+            break;
+
+        case GESTURE_SHAKE:
+            LOG_INFO("BIRD", "Shake detected, random bird trigger");
+            triggerBird(TRIGGER_GESTURE);
+            break;
+
+        case GESTURE_DOUBLE_TILT:
+            LOG_INFO("BIRD", "Double tilt detected, resetting statistics");
+            if (statistics_) {
+                statistics_->resetStats();
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+void BirdManager::saveStatisticsIfNeeded() {
+    if (!statistics_) {
+        return;
+    }
+
+    uint32_t current_time = getCurrentTime();
+    uint32_t time_since_last_save = current_time - last_stats_save_time_;
+
+    if (time_since_last_save >= (config_.stats_save_interval * 1000)) {
+        if (statistics_->saveToFile()) {
+            last_stats_save_time_ = current_time;
+            LOG_DEBUG("BIRD", "Statistics saved automatically");
+        }
+    }
+}
+
+uint32_t BirdManager::getCurrentTime() const {
+    // 使用Arduino的millis()函数
+    return millis();
+}
+
+uint32_t BirdManager::getNextAutoTriggerTime() const {
+    return last_auto_trigger_time_ + (config_.auto_trigger_interval * 1000);
+}
+
+const std::vector<BirdInfo>& BirdManager::getAllBirds() const {
+    if (!selector_) {
+        static std::vector<BirdInfo> empty;
+        return empty;
+    }
+    return selector_->getAllBirds();
+}
+
+uint8_t BirdManager::detectFrameCount(uint16_t bird_id) const {
+    if (!animation_) {
+        return 0;
+    }
+    return animation_->detectFrameCount(bird_id);
+}
+
+} // namespace BirdWatching

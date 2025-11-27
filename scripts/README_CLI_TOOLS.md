@@ -50,6 +50,29 @@ cybird_send.bat "log lines 50" COM4 9600
 cybird_send.bat
 ```
 
+### 4. `cybird_bird.bat` - 观鸟专用工具
+**专门用于观鸟功能的快捷工具**
+
+```bash
+# 触发小鸟动画
+cybird_bird.bat trigger
+
+# 查看观鸟统计
+cybird_bird.bat stats
+
+# 显示可用小鸟列表
+cybird_bird.bat list
+
+# 重置统计数据
+cybird_bird.bat reset
+
+# 在指定端口操作
+cybird_bird.bat trigger COM4
+
+# 显示帮助
+cybird_bird.bat help
+```
+
 ## 🚀 快速开始
 
 ### 首次使用
@@ -74,6 +97,19 @@ cybird_send.bat "log lines 50"
 
 # 清空日志
 cybird_send.bat "log clear"
+
+# 🐦 观鸟功能 (通用方式)
+cybird_send.bat "bird trigger"    # 手动触发小鸟动画
+cybird_send.bat "bird stats"      # 查看观鸟统计
+cybird_send.bat "bird list"       # 显示可用小鸟列表
+cybird_send.bat "bird reset"      # 重置统计数据
+
+# 🐦 观鸟功能 (专用工具，更简洁)
+cybird_bird.bat trigger           # 手动触发小鸟动画
+cybird_bird.bat stats             # 查看观鸟统计
+cybird_bird.bat list              # 显示可用小鸟列表
+cybird_bird.bat reset             # 重置统计数据
+cybird_bird.bat trigger COM4      # 在COM4端口触发小鸟
 
 # 如果设备在COM4端口
 cybird_cli_with_args.bat COM4
@@ -150,9 +186,11 @@ cybird_cli_with_args.bat COM4
 cybird_cli.bat
 
 # 2. 在交互模式中使用命令：
-[ON] CybirdWatching> status     # 查看状态
-[ON] CybirdWatching> log        # 查看日志
-[ON] CybirdWatching> quit       # 退出
+[ON] CybirdWatching> status        # 查看状态
+[ON] CybirdWatching> log           # 查看日志
+[ON] CybirdWatching> bird trigger  # 触发小鸟动画
+[ON] CybirdWatching> bird stats    # 查看观鸟统计
+[ON] CybirdWatching> quit          # 退出
 ```
 
 ### 快速检查
@@ -163,6 +201,10 @@ cybird_send.bat "status"
 
 # 如果状态正常，查看日志
 cybird_send.bat "log lines 20"
+
+# 测试观鸟功能
+cybird_bird.bat trigger
+cybird_bird.bat stats
 ```
 
 ### 不同设备切换

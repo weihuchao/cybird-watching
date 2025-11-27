@@ -68,6 +68,7 @@ uv run python -m cybird_watching_cli.main send "help"
 
 ### 设备命令
 
+#### 日志管理
 | 命令 | 描述 |
 |------|------|
 | `log` | 显示最后20行日志 |
@@ -75,10 +76,27 @@ uv run python -m cybird_watching_cli.main send "help"
 | `log size` | 显示日志文件大小 |
 | `log lines N` | 显示最后N行日志 (1-500) |
 | `log cat` | 显示完整日志文件内容 |
+
+#### 系统状态
+| 命令 | 描述 |
+|------|------|
 | `status` | 显示系统状态 |
 | `clear` | 清除设备终端屏幕 |
-| `tree [path] [levels]` | 显示SD卡目录树 |
 | `help` | 显示设备帮助 |
+
+#### 文件管理
+| 命令 | 描述 |
+|------|------|
+| `tree [path] [levels]` | 显示SD卡目录树 |
+
+#### 观鸟功能 🐦
+| 命令 | 描述 |
+|------|------|
+| `bird list` | 显示可用小鸟列表 |
+| `bird trigger` | 手动触发小鸟动画 |
+| `bird stats` | 显示观鸟统计信息 |
+| `bird status` | 显示观鸟系统状态 |
+| `bird help` | 显示观鸟命令帮助 |
 
 ### 本地命令
 
@@ -124,6 +142,33 @@ Uptime: 120 seconds
 [INFO] 传感器初始化完成
 ...
 
+[ON] CybirdWatching> bird list
+发送: bird list
+响应:
+=== Available Birds ===
+ID     Name              Weight   Frames
+----   --------------   ------   ------
+1001   普通翠鸟          50       ?
+1002   叉尾太阳鸟        30       ?
+----   --------------   ------   ------
+Total: 2 birds, Total Weight: 80
+=== End of List ===
+
+[ON] CybirdWatching> bird status
+发送: bird status
+响应:
+=== Bird Watching System Status ===
+Bird Manager: Initialized
+Animation System: Idle
+Statistics Records: 0
+=== End Status ===
+
+[ON] CybirdWatching> bird trigger
+发送: bird trigger
+响应:
+Triggering bird appearance...
+Bird triggered successfully!
+
 [ON] CybirdWatching> quit
 ```
 
@@ -137,6 +182,12 @@ cybird-cli send "status"
 
 # 获取最新日志
 cybird-cli send "log lines 100" > device.log
+
+# 查看观鸟统计
+cybird-cli send "bird stats"
+
+# 手动触发小鸟
+cybird-cli send "bird trigger"
 
 # 清空日志
 cybird-cli send "log clear"
@@ -254,6 +305,12 @@ uv run python -m cybird_watching_cli.main --port COM3
 欢迎提交Issue和Pull Request来改进这个项目。
 
 ## 更新日志
+
+### v1.1.0
+- ✨ 新增 `bird list` 命令：显示可用小鸟列表
+- ✨ 新增 `bird status` 命令：检查观鸟系统初始化状态
+- 🔧 改进 `bird stats` 命令：显示更详细的统计信息
+- 📚 更新帮助文档和示例
 
 ### v1.0.0
 - 初始版本
