@@ -1,16 +1,16 @@
 @echo off
 chcp 65001 >nul
-title HoloCubic CLI
+title CybirdWatching CLI
 
 echo.
 echo ================================================================
-echo                    HoloCubic CLI Launcher
+echo                    CybirdWatching CLI Launcher
 echo ================================================================
 echo.
 echo Starting interactive command line tool...
 echo.
 
-powershell -ExecutionPolicy Bypass -File "%~dp0holocubic_cli.ps1"
+powershell -ExecutionPolicy Bypass -File "%~dp0cybird_watching_cli.ps1"
 
 echo.
 echo CLI has exited

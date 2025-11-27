@@ -1,11 +1,11 @@
-# HoloCubic PowerShell CLI - Clean Architecture Version
+# CybirdWatching PowerShell CLI - Clean Architecture Version
 param(
     [string]$ComPort = "COM3",
     [int]$BaudRate = 115200
 )
 
 # ==================== CONFIGURATION ====================
-class HoloCubicConfig {
+class CybirdWatchingConfig {
     [int]$ConnectTimeoutMs = 3000
     [int]$CommandTimeoutMs = 6000
     [int]$ResponseWaitMs = 300
@@ -37,7 +37,7 @@ class SerialConnectionManager {
             $this.Port = New-Object System.IO.Ports.SerialPort $this.ComPort, $this.BaudRate
             $this.Port.Open()
             $this.IsConnected = $true
-            Write-Host "Connected to HoloCubic device ($($this.ComPort))" -ForegroundColor Green
+            Write-Host "Connected to CybirdWatching device ($($this.ComPort))" -ForegroundColor Green
             return $true
         }
         catch {
@@ -64,9 +64,9 @@ class SerialConnectionManager {
 
 # ==================== RESPONSE HANDLER ====================
 class CommandResponseHandler {
-    [HoloCubicConfig]$Config
+    [CybirdWatchingConfig]$Config
 
-    CommandResponseHandler([HoloCubicConfig]$config) {
+    CommandResponseHandler([CybirdWatchingConfig]$config) {
         $this.Config = $config
     }
 
@@ -129,12 +129,12 @@ class CommandResponseHandler {
 
 # ==================== COMMAND EXECUTOR ====================
 class CommandExecutor {
-    [HoloCubicConfig]$Config
+    [CybirdWatchingConfig]$Config
     [SerialConnectionManager]$Connection
     [CommandResponseHandler]$ResponseHandler
 
     CommandExecutor(
-        [HoloCubicConfig]$config,
+        [CybirdWatchingConfig]$config,
         [SerialConnectionManager]$connection,
         [CommandResponseHandler]$responseHandler
     ) {
@@ -204,9 +204,9 @@ class CommandExecutor {
 # ==================== HELP SYSTEM ====================
 function Show-Help {
     Write-Host ""
-    Write-Host "=== HoloCubic CLI Help ===" -ForegroundColor Magenta
+    Write-Host "=== CybirdWatching CLI Help ===" -ForegroundColor Magenta
     Write-Host ""
-    Write-Host "HoloCubic Device Commands (sent to device):" -ForegroundColor Yellow
+    Write-Host "CybirdWatching Device Commands (sent to device):" -ForegroundColor Yellow
     Write-Host "  log           - Show last 20 log lines" -ForegroundColor White
     Write-Host "  log clear     - Clear log file" -ForegroundColor White
     Write-Host "  log size      - Show log file size" -ForegroundColor White
@@ -215,7 +215,7 @@ function Show-Help {
     Write-Host "  status        - Show system status" -ForegroundColor White
     Write-Host "  clear         - Clear device terminal screen" -ForegroundColor White
     Write-Host "  tree [path] [levels] - Show SD card directory tree" -ForegroundColor White
-    Write-Host "  dh, device-help - Show device help (from HoloCubic)" -ForegroundColor White
+    Write-Host "  dh, device-help - Show device help (from CybirdWatching)" -ForegroundColor White
     Write-Host ""
     Write-Host "CLI Local Commands:" -ForegroundColor Yellow
     Write-Host "  help          - Show this CLI help" -ForegroundColor White
@@ -225,24 +225,24 @@ function Show-Help {
     Write-Host "  cls           - Clear this terminal screen" -ForegroundColor White
     Write-Host ""
     Write-Host "Examples:" -ForegroundColor Green
-    Write-Host "  HoloCubic> log          # Show device logs" -ForegroundColor Gray
-    Write-Host "  HoloCubic> log cat      # Show full log file content" -ForegroundColor Gray
-    Write-Host "  HoloCubic> status       # Show device status" -ForegroundColor Gray
-    Write-Host "  HoloCubic> log lines 20 # Show last 20 log lines" -ForegroundColor Gray
-    Write-Host "  HoloCubic> tree         # Show SD card directory tree" -ForegroundColor Gray
-    Write-Host "  HoloCubic> tree /config 2 # Show config directory with 2 levels" -ForegroundColor Gray
-    Write-Host "  HoloCubic> tree 5       # Show root directory with 5 levels" -ForegroundColor Gray
-    Write-Host "  HoloCubic> dh           # Show device help" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> log          # Show device logs" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> log cat      # Show full log file content" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> status       # Show device status" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> log lines 20 # Show last 20 log lines" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> tree         # Show SD card directory tree" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> tree /config 2 # Show config directory with 2 levels" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> tree 5       # Show root directory with 5 levels" -ForegroundColor Gray
+    Write-Host "  CybirdWatching> dh           # Show device help" -ForegroundColor Gray
     Write-Host ""
 }
 
 # ==================== MAIN PROGRAM ====================
 function Main() {
-    Write-Host "HoloCubic CLI - Interactive Command Line Tool v2.0" -ForegroundColor Green
+    Write-Host "CybirdWatching CLI - Interactive Command Line Tool v2.0" -ForegroundColor Green
     Write-Host "Connecting to device..." -ForegroundColor Gray
 
     # Initialize components
-    $config = [HoloCubicConfig]::new()
+    $config = [CybirdWatchingConfig]::new()
     $connection = [SerialConnectionManager]::new($ComPort, $BaudRate)
     $responseHandler = [CommandResponseHandler]::new($config)
     $executor = [CommandExecutor]::new($config, $connection, $responseHandler)
@@ -262,7 +262,7 @@ function Main() {
     while ($running) {
         try {
             $status = if ($connection.IsConnected) { "[ON]" } else { "[OFF]" }
-            $prompt = "$status HoloCubic> "
+            $prompt = "$status CybirdWatching> "
             $input = Read-Host -Prompt $prompt
             $input = $input.Trim().ToLower()
 
@@ -285,7 +285,7 @@ function Main() {
                 "cls" { Clear-Host; continue }
             }
 
-            # Device commands (sent to HoloCubic)
+            # Device commands (sent to CybirdWatching)
             $deviceCommands = @("log", "status", "clear", "tree", "dh", "device-help")
             $commandWord = $input.Split(' ')[0]
 

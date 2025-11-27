@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个名为"HoloCubic"的嵌入式项目，基于ESP32平台开发。该项目是一个智能显示设备，集成了多种传感器、显示模块、网络连接和用户界面功能。项目使用Arduino框架和PlatformIO进行开发。
+这是一个名为"CybirdWatching"的嵌入式项目，基于ESP32平台开发。该项目是一个智能显示设备，集成了多种传感器、显示模块、网络连接和用户界面功能。项目使用Arduino框架和PlatformIO进行开发。
 
 ## 开发环境
 

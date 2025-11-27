@@ -149,7 +149,7 @@ void SerialCommands::handleLogCommand(const String& param) {
             Serial.println("SD card is not available!");
         } else {
             // 直接打开日志文件顺序读取
-            String logFilePath = "/logs/holocubic.log";
+            String logFilePath = "/logs/cybird_watching.log";
             if (!SD.exists(logFilePath)) {
                 Serial.println("No log file found");
             } else {
@@ -214,7 +214,7 @@ void SerialCommands::handleStatusCommand() {
     // Start response marker
     Serial.println("<<<RESPONSE_START>>>");
 
-    Serial.println("=== HoloCubic System Status ===");
+    Serial.println("=== CybirdWatching System Status ===");
     Serial.println("Log Manager: " + String(logManager ? "OK" : "FAILED"));
     Serial.println("SD Card: " + String(logManager->isSDCardAvailable() ? "Available" : "Not Available"));
     Serial.println("Free Heap: " + String(ESP.getFreeHeap()) + " bytes");

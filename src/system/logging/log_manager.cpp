@@ -8,7 +8,7 @@ LogManager* LogManager::instance = nullptr;
 
 LogManager::LogManager() {
     sdCardAvailable = false;
-    logFilePath = "/logs/holocubic.log";
+    logFilePath = "/logs/cybird_watching.log";
     maxLogFileSize = 1024 * 1024; // 默认1MB
     currentLogLevel = LM_LOG_INFO;
     logOutputMode = OUTPUT_BOTH;

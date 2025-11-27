@@ -28,7 +28,7 @@ void setup()
     delay(1000); // 等待串口稳定
 
     // 立即输出标识，不依赖日志系统
-    Serial.println("=== HoloCubic Starting ===");
+    Serial.println("=== CybirdWatching Starting ===");
     Serial.println("*** NEW FIRMWARE v2.0 WITH SERIAL COMMANDS ***");
     Serial.println("This should be visible if new firmware is running!");
     delay(1000);
@@ -37,7 +37,7 @@ void setup()
     LogManager* logManager = LogManager::getInstance();
     logManager->initialize(LogManager::LM_LOG_INFO, LogManager::OUTPUT_SERIAL);
 
-    LOG_INFO("MAIN", "=== HoloCubic Starting ===");
+    LOG_INFO("MAIN", "=== CybirdWatching Starting ===");
     LOG_INFO("MAIN", "*** NEW FIRMWARE v2.0 WITH SERIAL COMMANDS ***");
     delay(1000);
     LOG_INFO("MAIN", "Serial communication OK");
