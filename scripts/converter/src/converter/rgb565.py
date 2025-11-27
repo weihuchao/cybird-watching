@@ -1,0 +1,164 @@
+"""
+RGB565图片转换器
+将PNG、JPG、JPEG等格式图片转换为RGB565格式
+"""
+
+from PIL import Image
+import numpy as np
+from pathlib import Path
+from typing import Tuple, Optional
+import struct
+
+
+class RGB565Converter:
+    """RGB565格式转换器"""
+
+    @staticmethod
+    def rgb_to_rgb565(r: int, g: int, b: int) -> int:
+        """
+        将RGB值转换为RGB565格式
+
+        Args:
+            r: 红色分量 (0-255)
+            g: 绿色分量 (0-255)
+            b: 蓝色分量 (0-255)
+
+        Returns:
+            RGB565格式的16位颜色值
+        """
+        # 将8位颜色转换为5位或6位
+        r5 = (r >> 3) & 0x1F    # 红色5位
+        g6 = (g >> 2) & 0x3F    # 绿色6位
+        b5 = (b >> 3) & 0x1F    # 蓝色5位
+
+        # 组合为RGB565格式 (RRRRRGGGGGGBBBBB)
+        return (r5 << 11) | (g6 << 5) | b5
+
+    @staticmethod
+    def convert_image_to_rgb565(image_path: Path, output_path: Path,
+                               max_size: Optional[Tuple[int, int]] = None) -> bool:
+        """
+        将图片转换为RGB565格式并保存为二进制文件
+
+        Args:
+            image_path: 输入图片路径
+            output_path: 输出文件路径
+            max_size: 最大尺寸 (width, height)，如果图片超过此尺寸则会等比缩放
+
+        Returns:
+            转换是否成功
+        """
+        try:
+            # 打开图片
+            with Image.open(image_path) as img:
+                # 转换为RGB模式
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                # 调整尺寸如果指定了最大尺寸
+                if max_size:
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                # 获取图片尺寸
+                width, height = img.size
+
+                # 转换为numpy数组
+                pixels = np.array(img)
+
+                # 创建RGB565数据数组
+                rgb565_data = []
+
+                for y in range(height):
+                    for x in range(width):
+                        r, g, b = pixels[y, x]
+                        rgb565 = RGB565Converter.rgb_to_rgb565(r, g, b)
+                        rgb565_data.append(rgb565)
+
+                # 写入二进制文件
+                with open(output_path, 'wb') as f:
+                    # 写入头部信息 (宽度、高度)
+                    f.write(struct.pack('<HH', width, height))
+                    # 写入RGB565数据
+                    for pixel in rgb565_data:
+                        f.write(struct.pack('<H', pixel))
+
+                return True
+
+        except Exception as e:
+            print(f"转换图片 {image_path} 时出错: {e}")
+            return False
+
+    @staticmethod
+    def convert_image_to_c_array(image_path: Path, output_path: Path,
+                                array_name: Optional[str] = None,
+                                max_size: Optional[Tuple[int, int]] = None) -> bool:
+        """
+        将图片转换为RGB565格式的C数组
+
+        Args:
+            image_path: 输入图片路径
+            output_path: 输出C文件路径
+            array_name: 数组名称，如果为None则使用文件名
+            max_size: 最大尺寸 (width, height)，如果图片超过此尺寸则会等比缩放
+
+        Returns:
+            转换是否成功
+        """
+        try:
+            # 打开图片
+            with Image.open(image_path) as img:
+                # 转换为RGB模式
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                # 调整尺寸如果指定了最大尺寸
+                if max_size:
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                # 获取图片尺寸
+                width, height = img.size
+
+                # 转换为numpy数组
+                pixels = np.array(img)
+
+                # 生成数组名称
+                if array_name is None:
+                    array_name = image_path.stem.replace('-', '_').replace(' ', '_')
+
+                # 生成C数组内容
+                c_content = []
+                c_content.append(f"// RGB565 Image Data")
+                c_content.append(f"// Generated from: {image_path.name}")
+                c_content.append(f"// Size: {width}x{height}")
+                c_content.append(f"")
+                c_content.append(f"#include <stdint.h>")
+                c_content.append(f"")
+                c_content.append(f"// Image dimensions")
+                c_content.append(f"const uint16_t {array_name}_width = {width};")
+                c_content.append(f"const uint16_t {array_name}_height = {height};")
+                c_content.append(f"")
+                c_content.append(f"// RGB565 pixel data")
+                c_content.append(f"const uint16_t {array_name}_data[] = {{")
+
+                # 转换像素数据
+                pixel_data = []
+                for y in range(height):
+                    row_data = []
+                    for x in range(width):
+                        r, g, b = pixels[y, x]
+                        rgb565 = RGB565Converter.rgb_to_rgb565(r, g, b)
+                        row_data.append(f"0x{rgb565:04X}")
+                    pixel_data.append("    " + ", ".join(row_data))
+
+                c_content.append(",\n".join(pixel_data))
+                c_content.append("};")
+
+                # 写入C文件
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write("\n".join(c_content))
+
+                return True
+
+        except Exception as e:
+            print(f"转换图片 {image_path} 为C数组时出错: {e}")
+            return False
