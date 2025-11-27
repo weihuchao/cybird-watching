@@ -1,0 +1,25 @@
+# CybirdWatching CLI 默认配置文件
+
+# 串口连接配置
+serial:
+  port: "COM3"           # 串口端口 (Windows: COM3, Linux: /dev/ttyUSB0, macOS: /dev/cu.usbserial)
+  baudrate: 115200       # 波特率
+  timeout: 3.0          # 连接超时(秒)
+  write_timeout: 3.0    # 写入超时(秒)
+
+# 响应处理配置
+response:
+  response_start_marker: "<<<RESPONSE_START>>>"
+  response_end_marker: "<<<RESPONSE_END>>>"
+  command_timeout_ms: 6000      # 命令超时(毫秒)
+  response_wait_ms: 100         # 响应等待时间(毫秒)
+  data_read_interval_ms: 10     # 数据读取间隔(毫秒)
+  no_data_timeout_ms: 800       # 无数据超时(毫秒)
+
+# 用户界面配置
+ui:
+  enable_colors: true           # 启用彩色输出
+  prompt_template: "{status} CybirdWatching> "  # 命令提示符模板
+
+# 日志配置
+log_level: "INFO"              # 日志级别: DEBUG, INFO, WARN, ERROR, FATAL

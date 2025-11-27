@@ -1,0 +1,22 @@
+[project]
+name = "cybird-watching-cli"
+version = "0.1.0"
+description = "跨平台CybirdWatching设备CLI工具"
+readme = "README.md"
+authors = [
+    { name = "Mango", email = "imango@outlook.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.3.1",
+    "pyserial>=3.5",
+    "pyyaml>=6.0.3",
+    "rich>=14.2.0",
+]
+
+[project.scripts]
+cybird-cli = "cybird_watching_cli.main:main_sync"
+
+[build-system]
+requires = ["uv_build>=0.8.19,<0.9.0"]
+build-backend = "uv_build"
