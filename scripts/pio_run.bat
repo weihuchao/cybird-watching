@@ -1,0 +1,3 @@
+cd ../
+pio run 
+pause
