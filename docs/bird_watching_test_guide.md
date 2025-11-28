@@ -124,10 +124,10 @@ struct BirdConfig {
 ```
 resources/
 ├── birds/
-│   ├── sparrow/frames/frame_000.bin ~ frame_007.bin
-│   ├── robin/frames/frame_000.bin ~ frame_009.bin
-│   ├── sparrowhawk/frames/frame_000.bin ~ frame_011.bin
-│   └── swallow/frames/frame_000.bin ~ frame_007.bin
+│   ├── sparrow/frames/pic-01.bin ~ pic-08.bin
+│   ├── robin/frames/pic-01.bin ~ pic-10.bin
+│   ├── sparrowhawk/frames/pic-01.bin ~ pic-12.bin
+│   └── swallow/frames/pic-01.bin ~ pic-08.bin
 └── tools/
     └── create_placeholder_frames.py
 ```
