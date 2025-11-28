@@ -38,7 +38,7 @@ class RGB565Converter:
     def convert_image_to_rgb565(image_path: Path, output_path: Path,
                                max_size: Optional[Tuple[int, int]] = None) -> bool:
         """
-        将图片转换为RGB565格式并保存为二进制文件
+        将图片转换为RGB565格式并保存为LVGL 7.9.1兼容的二进制文件
 
         Args:
             image_path: 输入图片路径
@@ -74,11 +74,21 @@ class RGB565Converter:
                         rgb565 = RGB565Converter.rgb_to_rgb565(r, g, b)
                         rgb565_data.append(rgb565)
 
-                # 写入二进制文件
+                # 写入LVGL 7.9.1兼容的二进制文件
                 with open(output_path, 'wb') as f:
-                    # 写入头部信息 (宽度、高度)
-                    f.write(struct.pack('<HH', width, height))
-                    # 写入RGB565数据
+                    # LVGL图像头部 (12字节)
+                    # cf (color format): LV_IMG_CF_TRUE_COLOR = 4 for RGB565
+                    # always_zero: 必须为0
+                    LV_IMG_CF_TRUE_COLOR = 4
+                    header_cf = LV_IMG_CF_TRUE_COLOR | (0 << 8)  # cf=4, always_zero=0
+                    
+                    # 写入完整的LVGL图像头部
+                    f.write(struct.pack('<I', header_cf))  # 4字节: cf + always_zero
+                    f.write(struct.pack('<HH', width, height))  # 4字节: width + height
+                    data_size = len(rgb565_data) * 2  # RGB565每像素2字节
+                    f.write(struct.pack('<I', data_size))  # 4字节: data_size
+                    
+                    # 写入RGB565像素数据
                     for pixel in rgb565_data:
                         f.write(struct.pack('<H', pixel))
 
