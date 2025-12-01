@@ -98,11 +98,12 @@ void setup()
     LOG_INFO("MAIN", "Creating GUI...");
     lv_holo_cubic_gui();
     LOG_INFO("MAIN", "GUI created");
-//    setup_ui(&guider_ui);
+    setup_ui(&guider_ui);
 
     /*** Init Bird Watching System ***/
     LOG_INFO("MAIN", "Initializing Bird Watching System...");
-    if (BirdWatching::initializeBirdWatching()) {
+    // 传入scenes_canvas给BirdManager作为显示对象
+    if (BirdWatching::initializeBirdWatching(guider_ui.scenes_canvas)) {
         LOG_INFO("MAIN", "Bird Watching System initialized successfully");
     } else {
         LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
@@ -128,14 +129,4 @@ void loop()
 
     // 处理串口命令
     SerialCommands::getInstance()->handleInput();
-
-    //Serial.println("hello");
-//    int len = sprintf(buf, "S:/Scenes/Holo3D/frame%03d.bin", frame_id++);
-//    buf[len] = 0;
-//    lv_img_set_src(guider_ui.scenes_canvas, buf);
-//    Serial.println(buf);
-//
-//    if (frame_id == 138) frame_id = 0;
-
-    //delay(10);
 }

@@ -32,7 +32,7 @@ bool BirdAnimation::init(lv_obj_t* parent_obj) {
 
     // 创建或设置显示对象
     if (!display_obj_) {
-        display_obj_ = lv_img_create(parent_obj, nullptr);
+        display_obj_ = lv_image_create(parent_obj);
         if (!display_obj_) {
             LOG_ERROR("ANIM", "Failed to create LVGL image object");
             return false;
@@ -96,20 +96,23 @@ void BirdAnimation::startLoop() {
       is_playing_ = true;
     LOG_INFO("ANIM", "Starting loop animation for bird with " + String(current_frame_count_) + " frames");
 
-    // 创建播放定时器（使用较短的间隔来检查是否需要处理下一帧）
-    play_timer_ = lv_task_create(timerCallback, 20, LV_TASK_PRIO_HIGH, this); // 20ms检查间隔，高优先级
+    // 设置帧间隔为50ms
+    frame_interval_ = 50;
+
+    // 创建播放定时器，50ms后触发下一帧
+    play_timer_ = lv_timer_create(timerCallback, 50, this); // LVGL 9.x: 移除优先级参数
     if (!play_timer_) {
         LOG_ERROR("ANIM", "Failed to create animation timer");
         is_playing_ = false;
         return;
     }
 
-    LOG_INFO("ANIM", "Animation timer created successfully, interval: 20ms");
+    LOG_INFO("ANIM", "Animation timer created successfully");
 }
 
 void BirdAnimation::stop() {
     if (play_timer_) {
-        lv_task_del(play_timer_);
+        lv_timer_del(play_timer_);  // LVGL 9.x: lv_task_del → lv_timer_del
         play_timer_ = nullptr;
     }
     is_playing_ = false;
@@ -122,7 +125,7 @@ void BirdAnimation::stop() {
 
     // 清除显示内容
     if (display_obj_) {
-        lv_img_set_src(display_obj_, nullptr);
+        lv_image_set_src(display_obj_, nullptr);  // LVGL 9.x: lv_img_set_src → lv_image_set_src
     }
 
     LOG_INFO("ANIM", "Animation stopped");
@@ -160,7 +163,8 @@ bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
 
     // 尝试手动加载图像
     if (tryManualImageLoad(frame_path)) {
-        // 成功时不输出日志避免洪水
+        // 强制刷新LVGL显示
+        lv_obj_invalidate(display_obj_);
     } else {
         // 手动加载失败，使用后备颜色显示
         lv_color_t bird_color = lv_color_hex(0x808080); // 默认灰色
@@ -174,9 +178,9 @@ bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
             case 7: bird_color = lv_color_hex(0xFF69B4); break;
         }
 
-        lv_obj_set_style_local_bg_color(display_obj_, LV_OBJ_PART_MAIN, 0, bird_color);
-        lv_obj_set_style_local_border_width(display_obj_, LV_OBJ_PART_MAIN, 0, 2);
-        lv_obj_set_style_local_border_color(display_obj_, LV_OBJ_PART_MAIN, 0, lv_color_hex(0x333333));
+        lv_obj_set_style_bg_color(display_obj_, bird_color, LV_PART_MAIN);  // LVGL 9.x: 移除local函数，直接使用set_style
+        lv_obj_set_style_border_width(display_obj_, 2, LV_PART_MAIN);
+        lv_obj_set_style_border_color(display_obj_, lv_color_hex(0x333333), LV_PART_MAIN);
     }
 
     return true;
@@ -195,37 +199,24 @@ void BirdAnimation::playNextFrame() {
     // 循环播放：当到达最后一帧时回到第一帧
     if (current_frame_ >= current_frame_count_) {
         current_frame_ = 0;  // 回到第一帧继续循环
-        LOG_DEBUG("ANIM", "Animation loop, restarting from first frame");
     }
 
     // 加载并显示下一帧
     if (!loadAndShowFrame(current_frame_)) {
-        LOG_ERROR("ANIM", "Failed to load frame");
         stop();
         return;
     }
 
-    // 更新最后处理时间
-    last_frame_time_ = millis();
+    // 设置下一帧的定时器：50ms后播放下一帧
     frame_processing_ = false;
 
-    LOG_DEBUG("ANIM", "Playing next frame in loop");
+    // 重新设置定时器，50ms后触发下一帧
+    if (play_timer_) {
+        lv_timer_del(play_timer_);
+    }
+    play_timer_ = lv_timer_create(timerCallback, 50, this);
 }
 
-void BirdAnimation::scheduleNextFrame() {
-    if (!is_playing_) {
-        return;
-    }
-
-    // 检查是否到了处理下一帧的时间
-    uint32_t current_time = millis();
-    uint32_t time_since_last = current_time - last_frame_time_;
-
-    if (time_since_last >= frame_interval_) {
-        LOG_DEBUG("ANIM", "Time to process next frame: " + String(time_since_last) + "ms elapsed");
-        playNextFrame();
-    }
-}
 
 uint8_t BirdAnimation::detectFrameCount(uint16_t bird_id) const {
     uint8_t count = 0;
@@ -243,7 +234,7 @@ uint8_t BirdAnimation::detectFrameCount(uint16_t bird_id) const {
         }
     }
 
-    LOG_DEBUG("ANIM", "Detected frame count");
+    LOG_DEBUG("ANIM", "Detected frame count: " + String(count) + " frames for bird " + String(bird_id));
     return count; // 返回实际检测到的帧数
 }
 
@@ -257,29 +248,40 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
     }
 
     size_t file_size = file.size();
-    if (file_size < 12) { // 最小LVGL头部大小
+    if (file_size < 32) { // LVGL 9.x最小头部大小
         LOG_ERROR("BIRD", "File too small: " + String(file_size) + " bytes");
         file.close();
         return false;
     }
 
-    // 读取LVGL头部
-    uint32_t cf, data_size;
+    // 读取LVGL 9.x头部
+    uint32_t header_cf, flags, stride, reserved_2, data_size;
     uint16_t width, height;
 
-    if (file.read((uint8_t*)&cf, sizeof(cf)) != sizeof(cf) ||
+    if (file.read((uint8_t*)&header_cf, sizeof(header_cf)) != sizeof(header_cf) ||
+        file.read((uint8_t*)&flags, sizeof(flags)) != sizeof(flags) ||
         file.read((uint8_t*)&width, sizeof(width)) != sizeof(width) ||
         file.read((uint8_t*)&height, sizeof(height)) != sizeof(height) ||
+        file.read((uint8_t*)&stride, sizeof(stride)) != sizeof(stride) ||
+        file.read((uint8_t*)&reserved_2, sizeof(reserved_2)) != sizeof(reserved_2) ||
         file.read((uint8_t*)&data_size, sizeof(data_size)) != sizeof(data_size)) {
-        LOG_ERROR("BIRD", "Failed to read header");
+        LOG_ERROR("BIRD", "Failed to read LVGL 9.x header");
         file.close();
         return false;
     }
 
-    // 验证文件格式
-    uint8_t color_format = cf & 0xFF;
+    // 验证LVGL 9.x文件格式
+    uint8_t color_format = header_cf & 0xFF;
+    uint8_t magic = (header_cf >> 24) & 0xFF;
 
-    if (color_format != 4) { // 期望RGB565格式
+    if (color_format != 0x12) { // LVGL 9.x: LV_COLOR_FORMAT_RGB565 = 0x12
+        LOG_ERROR("BIRD", "Invalid color format: 0x" + String(color_format, HEX));
+        file.close();
+        return false;
+    }
+
+    if (magic != 0x37) { // LVGL 9.x magic number
+        LOG_ERROR("BIRD", "Invalid magic number: 0x" + String(magic, HEX));
         file.close();
         return false;
     }
@@ -292,14 +294,16 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
 
     // 检查可用内存
     size_t free_heap = ESP.getFreeHeap();
+    LOG_DEBUG("ANIM", "Loading " + String(file_path.c_str()) + ", file_size: " + String(data_size) + ", free_heap: " + String(free_heap));
 
     if (free_heap < data_size + 4096) { // 预留4KB额外空间
+        LOG_ERROR("ANIM", "Insufficient memory - need " + String(data_size) + " + 4096, have " + String(free_heap));
         file.close();
         return false;
     }
 
     // 分配内存
-    lv_img_dsc_t* img_dsc = static_cast<lv_img_dsc_t*>(malloc(sizeof(lv_img_dsc_t)));
+    lv_image_dsc_t* img_dsc = static_cast<lv_image_dsc_t*>(malloc(sizeof(lv_image_dsc_t)));
     if (!img_dsc) {
         LOG_ERROR("BIRD", "Failed to allocate descriptor");
         file.close();
@@ -325,12 +329,14 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
         return false;
     }
 
-    // 设置LVGL图像描述符 - LVGL 7.x格式
-    img_dsc->header.cf = color_format;  // 应该是4 (RGB565)
+    // 设置LVGL图像描述符 - LVGL 9.x格式
+    img_dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+    img_dsc->header.cf = color_format;  // 0x12 for RGB565
+    img_dsc->header.flags = 0;
     img_dsc->header.w = width;
     img_dsc->header.h = height;
-    img_dsc->header.always_zero = 0;
-    img_dsc->header.reserved = 0;
+    img_dsc->header.stride = width * 2;  // RGB565每像素2字节
+    img_dsc->header.reserved_2 = 0;
     img_dsc->data_size = data_size;
     img_dsc->data = img_data;
 
@@ -343,23 +349,23 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
     current_img_data_ = img_data;
 
     // 设置图像源
-    lv_img_set_src(display_obj_, img_dsc);
+    lv_image_set_src(display_obj_, img_dsc);  // LVGL 9.x: lv_img_set_src → lv_image_set_src
 
-    // 计算缩放比例 - 120x120拉伸到240x240需要2倍缩放
+    // 计算缩放比例 - canvas现在是240x240，图像是120x120，需要2倍缩放
     // LVGL缩放：256 = 1.0x, 512 = 2.0x
     uint16_t zoom_factor = 512; // 2.0x缩放
 
-    // 设置缩放中心点为图像中心（LVGL 7.x pivot）
+    // 设置缩放中心点为图像中心
     lv_img_set_pivot(display_obj_, width / 2, height / 2);
 
-    // 应用缩放 - LVGL 7.x兼容
+    // 应用缩放
     lv_img_set_zoom(display_obj_, zoom_factor);
 
-    // 设置图像对象到屏幕中心，让pivot缩放后居中
-    lv_obj_set_pos(display_obj_, (240 - width) / 2, (240 - height) / 2);
+    // 设置图像位置到canvas中心
+    lv_obj_center(display_obj_);
 
-    // 确保对象可见 - LVGL 7.x兼容
-    lv_obj_set_hidden(display_obj_, false);
+    // 确保对象可见 - LVGL 9.x: lv_obj_set_hidden被移除，使用add_state/clear_state
+    lv_obj_clear_flag(display_obj_, LV_OBJ_FLAG_HIDDEN);
 
     // 测试已完成，现在显示真实图像
     // if (false) { // 改为false来显示真实图像
@@ -393,7 +399,7 @@ void BirdAnimation::createTestImage() {
     releasePreviousFrame();
 
     // 分配内存
-    lv_img_dsc_t* img_dsc = static_cast<lv_img_dsc_t*>(malloc(sizeof(lv_img_dsc_t)));
+    lv_image_dsc_t* img_dsc = static_cast<lv_image_dsc_t*>(malloc(sizeof(lv_image_dsc_t)));
     uint8_t* img_data = static_cast<uint8_t*>(malloc(data_size));
 
     if (!img_dsc || !img_data) {
@@ -409,12 +415,14 @@ void BirdAnimation::createTestImage() {
         pixel_data[i] = 0xF800; // 纯红色
     }
 
-    // 设置图像描述符
-    img_dsc->header.cf = 4; // RGB565
+    // 设置图像描述符 - LVGL 9.x格式
+    img_dsc->header.magic = LV_IMAGE_HEADER_MAGIC;
+    img_dsc->header.cf = 0x12; // LV_COLOR_FORMAT_RGB565
+    img_dsc->header.flags = 0;
     img_dsc->header.w = width;
     img_dsc->header.h = height;
-    img_dsc->header.always_zero = 0;
-    img_dsc->header.reserved = 0;
+    img_dsc->header.stride = width * 2;
+    img_dsc->header.reserved_2 = 0;
     img_dsc->data_size = data_size;
     img_dsc->data = img_data;
 
@@ -423,17 +431,17 @@ void BirdAnimation::createTestImage() {
     current_img_data_ = img_data;
 
     // 设置到显示对象
-    lv_img_set_src(display_obj_, img_dsc);
+    lv_image_set_src(display_obj_, img_dsc);  // LVGL 9.x: lv_img_set_src → lv_image_set_src
 
     // 拉伸到全屏显示
     lv_obj_set_pos(display_obj_, 0, 0);
     lv_obj_set_size(display_obj_, 240, 240); // 拉伸到全屏
 }
 
-void BirdAnimation::timerCallback(lv_task_t* timer) {
-    BirdAnimation* animation = static_cast<BirdAnimation*>(timer->user_data);
-    if (animation) {
-        animation->scheduleNextFrame();
+void BirdAnimation::timerCallback(lv_timer_t* timer) {
+    BirdAnimation* animation = static_cast<BirdAnimation*>(lv_timer_get_user_data(timer));  // LVGL 9.x: 使用lv_timer_get_user_data
+    if (animation && animation->is_playing_) {
+        animation->playNextFrame();
     }
 }
 

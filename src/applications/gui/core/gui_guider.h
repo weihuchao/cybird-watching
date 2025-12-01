@@ -18,7 +18,7 @@ extern "C" {
 	void setup_ui(lv_ui* ui);
 	extern lv_ui guider_ui;
 	void setup_scr_home(lv_ui* ui);
-	void setup_scr_scenes(lv_ui* ui);
+	void setup_screnes(lv_ui* ui);
 
 #ifdef __cplusplus
 }

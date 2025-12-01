@@ -46,14 +46,14 @@ private:
     BirdInfo current_bird_;      // 当前小鸟信息
     uint8_t current_frame_;      // 当前帧
     uint8_t current_frame_count_; // 当前小鸟的实际帧数
-    lv_task_t* play_timer_;      // 播放定时器
+    lv_timer_t* play_timer_;      // 播放定时器 (LVGL 9.x: lv_task_t → lv_timer_t)
     bool is_playing_;            // 播放状态
         uint32_t frame_interval_;    // 帧间间隔时间（毫秒，处理完图片后的等待时间）
     bool frame_processing_;      // 当前是否正在处理帧
     uint32_t last_frame_time_;   // 上一帧处理完成的时间
 
     // 内存管理
-    lv_img_dsc_t* current_img_dsc_; // 当前图像描述符
+    lv_image_dsc_t* current_img_dsc_; // 当前图像描述符 (LVGL 9.x: lv_img_dsc_t → lv_image_dsc_t)
     uint8_t* current_img_data_;     // 当前图像数据
 
     // 释放前一帧的内存
@@ -63,7 +63,7 @@ private:
     void createTestImage();
 
     // 定时器回调函数
-    static void timerCallback(lv_task_t* timer);
+    static void timerCallback(lv_timer_t* timer);
 
     // 获取帧文件路径
     std::string getFramePath(uint8_t frame_index) const;

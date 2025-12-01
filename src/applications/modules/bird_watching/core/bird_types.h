@@ -6,7 +6,7 @@
 #include <map>
 #include <cstdint>
 #include <time.h>
-#include "lvgl/lvgl.h"
+#include "lvgl.h"
 
 #ifdef __cplusplus
 

@@ -7,6 +7,7 @@
   *      INCLUDES
   *********************/
 #include "lv_port_fatfs.h"
+#include <string.h>
 
 
   /*********************
@@ -32,7 +33,7 @@ static lv_fs_res_t fs_open(lv_fs_drv_t* drv, void* file_p, const char* path, lv_
 static lv_fs_res_t fs_close(lv_fs_drv_t* drv, void* file_p);
 static lv_fs_res_t fs_read(lv_fs_drv_t* drv, void* file_p, void* buf, uint32_t btr, uint32_t* br);
 static lv_fs_res_t fs_write(lv_fs_drv_t* drv, void* file_p, const void* buf, uint32_t btw, uint32_t* bw);
-static lv_fs_res_t fs_seek(lv_fs_drv_t* drv, void* file_p, uint32_t pos);
+static lv_fs_res_t fs_seek(lv_fs_drv_t* drv, void* file_p, uint32_t pos, lv_fs_whence_t whence);
 static lv_fs_res_t fs_size(lv_fs_drv_t* drv, void* file_p, uint32_t* size_p);
 static lv_fs_res_t fs_tell(lv_fs_drv_t* drv, void* file_p, uint32_t* pos_p);
 static lv_fs_res_t fs_remove(lv_fs_drv_t* drv, const char* path);
@@ -40,7 +41,7 @@ static lv_fs_res_t fs_trunc(lv_fs_drv_t* drv, void* file_p);
 static lv_fs_res_t fs_rename(lv_fs_drv_t* drv, const char* oldname, const char* newname);
 static lv_fs_res_t fs_free(lv_fs_drv_t* drv, uint32_t* total_p, uint32_t* free_p);
 static lv_fs_res_t fs_dir_open(lv_fs_drv_t* drv, void* dir_p, const char* path);
-static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dir_p, char* fn);
+static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dir_p, char* fn, uint32_t len);
 static lv_fs_res_t fs_dir_close(lv_fs_drv_t* drv, void* dir_p);
 
 /**********************
@@ -53,7 +54,7 @@ static lv_fs_res_t fs_dir_close(lv_fs_drv_t* drv, void* dir_p);
 
   /**********************
    *   GLOBAL FUNCTIONS
-   **********************/
+  **********************/
 
 void lv_fs_if_init(void)
 {
@@ -63,34 +64,27 @@ void lv_fs_if_init(void)
 	fs_init();
 
 	/*---------------------------------------------------
-	 * Register the file system interface  in LittlevGL
+	 * Register the file system interface in LVGL 9.x
 	 *--------------------------------------------------*/
 
-	 /* Add a simple drive to open images */
-	lv_fs_drv_t fs_drv;                         /*A driver descriptor*/
-	lv_fs_drv_init(&fs_drv);
+	 /* Add a simple drive to open images - LVGL 9.x API */
+	lv_fs_drv_t* fs_drv = &(lv_fs_drv_t){0};  /*A driver descriptor*/
 
 	/*Set up fields...*/
-	fs_drv.file_size = sizeof(file_t);
-	fs_drv.letter = DRIVE_LETTER;
-	fs_drv.open_cb = fs_open;
-	fs_drv.close_cb = fs_close;
-	fs_drv.read_cb = fs_read;
-	fs_drv.write_cb = fs_write;
-	fs_drv.seek_cb = fs_seek;
-	fs_drv.tell_cb = fs_tell;
-	fs_drv.free_space_cb = fs_free;
-	fs_drv.size_cb = fs_size;
-	fs_drv.remove_cb = fs_remove;
-	fs_drv.rename_cb = fs_rename;
-	fs_drv.trunc_cb = fs_trunc;
+	fs_drv->letter = DRIVE_LETTER;
+	fs_drv->open_cb = (void*(*)(lv_fs_drv_t*, const char*, lv_fs_mode_t))fs_open;
+	fs_drv->close_cb = fs_close;
+	fs_drv->read_cb = fs_read;
+	fs_drv->write_cb = fs_write;
+	fs_drv->seek_cb = fs_seek;
+	fs_drv->tell_cb = fs_tell;
+	// Note: LVGL 9.x removed some callbacks, using only essential ones
 
-	fs_drv.rddir_size = sizeof(dir_t);
-	fs_drv.dir_close_cb = fs_dir_close;
-	fs_drv.dir_open_cb = fs_dir_open;
-	fs_drv.dir_read_cb = fs_dir_read;
+	fs_drv->dir_close_cb = fs_dir_close;
+	fs_drv->dir_open_cb = (void*(*)(lv_fs_drv_t*, const char*))fs_dir_open;
+	fs_drv->dir_read_cb = fs_dir_read;
 
-	lv_fs_drv_register(&fs_drv);
+	lv_fs_drv_register(fs_drv);
 }
 
 /**********************
@@ -195,7 +189,7 @@ static lv_fs_res_t fs_write(lv_fs_drv_t* drv, void* file_p, const void* buf, uin
  * @return LV_FS_RES_OK: no error, the file is read
  *         any error from lv_fs_res_t enum
  */
-static lv_fs_res_t fs_seek(lv_fs_drv_t* drv, void* file_p, uint32_t pos)
+static lv_fs_res_t fs_seek(lv_fs_drv_t* drv, void* file_p, uint32_t pos, lv_fs_whence_t whence)
 {
 	f_lseek((file_t*)file_p, pos);
 	return LV_FS_RES_OK;
@@ -312,7 +306,7 @@ static lv_fs_res_t fs_dir_open(lv_fs_drv_t* drv, void* dir_p, const char* path)
  * @param fn pointer to a buffer to store the filename
  * @return LV_FS_RES_OK or any error from lv_fs_res_t enum
  */
-static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dir_p, char* fn)
+static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dir_p, char* fn, uint32_t len)
 {
 	FRESULT res;
 	FILINFO fno;

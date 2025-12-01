@@ -5,9 +5,7 @@
 
 void setup_ui(lv_ui* ui)
 {
-	setup_scr_home(ui);
-	lv_scr_load(ui->home);
-
-	setup_scr_scenes(ui);
+	// 只初始化scenes界面，包含Bird Animation系统
+	setup_screnes(ui);
 	lv_scr_load(ui->scenes);
 }

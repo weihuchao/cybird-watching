@@ -7,8 +7,6 @@ TFT pins should be set in path/to/Arduino/libraries/TFT_eSPI/User_Setups/Setup24
 */
 TFT_eSPI tft = TFT_eSPI();
 
-static lv_disp_buf_t disp_buf;
-static lv_color_t buf[LV_HOR_RES_MAX * 10];
 
 
 void my_print(lv_log_level_t level, const char* file, uint32_t line, const char* fun, const char* dsc)
@@ -41,17 +39,17 @@ void my_print(lv_log_level_t level, const char* file, uint32_t line, const char*
 }
 
 
-void my_disp_flush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p)
+void my_disp_flush(lv_display_t* disp, const lv_area_t* area, uint8_t* px_map)
 {
 	uint32_t w = (area->x2 - area->x1 + 1);
 	uint32_t h = (area->y2 - area->y1 + 1);
 
 	tft.startWrite();
 	tft.setAddrWindow(area->x1, area->y1, w, h);
-	tft.pushColors(&color_p->full, w * h, true);
+	tft.pushColors((uint16_t*)px_map, w * h, true);
 	tft.endWrite();
 
-	lv_disp_flush_ready(disp);
+	lv_display_flush_ready(disp);
 }
 
 
@@ -65,7 +63,7 @@ void Display::init()
 
 	lv_init();
 
-	lv_log_register_print_cb(my_print); /* register print function for debugging */
+	// lv_log_register_print_cb() is deprecated in LVGL 9.x
 
 	LOG_INFO("TFT", "Testing minimal TFT init...");
 
@@ -81,21 +79,22 @@ void Display::init()
 	LOG_INFO("TFT", "TFT rotation set");
 	LOG_INFO("TFT", "TFT initialization successful");
 
-	lv_disp_buf_init(&disp_buf, buf, NULL, LV_HOR_RES_MAX * 10);
+	/* Create the display */
+	lv_display_t* disp = lv_display_create(240, 240);
+	lv_display_set_flush_cb(disp, my_disp_flush);
 
-	/*Initialize the display*/
-	lv_disp_drv_t disp_drv;
-	lv_disp_drv_init(&disp_drv);
-	disp_drv.hor_res = 240;
-	disp_drv.ver_res = 240;
-	disp_drv.flush_cb = my_disp_flush;
-	disp_drv.buffer = &disp_buf;
-	lv_disp_drv_register(&disp_drv);
+	/* Set display buffers - the old draw_buf approach is deprecated */
+	static lv_color_t buf1[240 * 10];
+	lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
 }
 
 void Display::routine()
 {
-	lv_task_handler();
+    // 更新LVGL系统tick，1ms
+    lv_tick_inc(1);
+
+    // 处理LVGL定时器
+    lv_timer_handler();
 }
 
 void Display::setBackLight(float duty)
