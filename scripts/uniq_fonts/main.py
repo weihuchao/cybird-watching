@@ -2,7 +2,7 @@ words = [
     '0123456789',
     'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
     'abcdefghijklmnopqrstuvwxyz',
-    '!@#$%^&*()_+ ',
+    '!@#$%^&*()_+ /',
     '！@#￥%……&*（）——+',
     '普通翠鸟',
     '白胸翡翠',
