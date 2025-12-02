@@ -11,9 +11,6 @@
 
 namespace BirdWatching {
 
-// 小鸟信息显示配置
-#define BIRD_INFO_FONT_SIZE 16  // 字体大小，方便调整
-
 // 触发类型枚举
 enum TriggerType {
     TRIGGER_AUTO = 0,       // 自动触发
@@ -76,6 +73,12 @@ public:
     // 显示小鸟信息（在右下角）
     void showBirdInfo(uint16_t bird_id, const std::string& bird_name, bool is_new);
 
+    // 隐藏小鸟信息
+    void hideBirdInfo();
+    
+    // 检查并隐藏小鸟信息（如果超时）
+    void checkAndHideBirdInfo();
+
 private:
     bool initialized_;                           // 初始化状态
     bool first_bird_loaded_;                     // 首次小鸟是否已加载
@@ -91,6 +94,10 @@ private:
 
     // 触发请求(用于跨任务通信)
     BirdTriggerRequest trigger_request_;
+
+    // 小鸟信息显示时间戳
+    uint32_t bird_info_show_time_;
+    bool bird_info_visible_;
 
     // 初始化各个子系统
     bool initializeSubsystems(lv_obj_t* display_obj);

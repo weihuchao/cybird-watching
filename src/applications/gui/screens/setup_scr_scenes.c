@@ -10,8 +10,9 @@
 #include "bird_animation_bridge.h"
 
 // 小鸟信息显示配置
+// ⚠️ 字体配置统一在这里管理，请勿在其他文件重复定义
 #define BIRD_INFO_USE_CHINESE_FONT 1  // 1: 使用中文字体, 0: 使用英文字体
-#define BIRD_INFO_FONT_SIZE 16  // 字体大小（如需修改，需重新生成对应大小的字体文件）
+#define BIRD_INFO_FONT_SIZE 18  // 字体大小（如需修改，需重新生成对应大小的字体文件）
 
 // 字体声明（根据大小自动选择对应的字体）
 // 注意：修改 BIRD_INFO_FONT_SIZE 后，需要生成对应的字体文件：lv_font_notosanssc_XX.c

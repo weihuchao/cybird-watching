@@ -22,6 +22,8 @@ BirdManager::BirdManager()
     , last_auto_trigger_time_(0)
     , last_stats_save_time_(0)
     , system_start_time_(0)
+    , bird_info_show_time_(0)
+    , bird_info_visible_(false)
 {
     trigger_request_.pending = false;
     trigger_request_.type = TRIGGER_AUTO;
@@ -90,8 +92,11 @@ void BirdManager::processTriggerRequest() {
     }
 
     // 注意: 此函数在UI任务中调用,已持有LVGL锁
-    // 安全地处理动画播放
+    
+    // 检查并隐藏小鸟信息（如果超时）
+    checkAndHideBirdInfo();
 
+    // 安全地处理动画播放
     if (trigger_request_.pending) {
         bool record_stats = trigger_request_.record_stats;
         trigger_request_.pending = false;
@@ -384,6 +389,26 @@ uint8_t BirdManager::detectFrameCount(uint16_t bird_id) const {
     return animation_->detectFrameCount(bird_id);
 }
 
+void BirdManager::checkAndHideBirdInfo() {
+    // 如果信息可见且已超过5秒，则隐藏
+    if (bird_info_visible_) {
+        uint32_t current_time = getCurrentTime();
+        if (current_time - bird_info_show_time_ >= 5000) {
+            hideBirdInfo();
+        }
+    }
+}
+
+void BirdManager::hideBirdInfo() {
+    if (!guider_ui.scenes_bird_info_label) {
+        return;
+    }
+
+    // 隐藏标签
+    lv_obj_add_flag(guider_ui.scenes_bird_info_label, LV_OBJ_FLAG_HIDDEN);
+    bird_info_visible_ = false;
+}
+
 void BirdManager::showBirdInfo(uint16_t bird_id, const std::string& bird_name, bool is_new) {
     if (!guider_ui.scenes_bird_info_label) {
         LOG_ERROR("BIRD", "Bird info label not available");
@@ -398,14 +423,14 @@ void BirdManager::showBirdInfo(uint16_t bird_id, const std::string& bird_name, b
     // LVGL颜色格式: #RRGGBB text#
     char info_text[256];
     if (is_new) {
-        // 新小鸟: "加新 {小鸟名字}！"
+        // 新小鸟: "加新{小鸟名字}！"
         snprintf(info_text, sizeof(info_text), 
-                 "#FFFFFF 加新 # #87CEEB %s# #FFFFFF ！#", 
+                 "#FFFFFF 加新##87CEEB %s##FFFFFF ！#", 
                  bird_name.c_str());
     } else {
-        // 已见过: "{小鸟名字} 来了 {count} 次！"
+        // 已见过: "{小鸟名字}来了{count}次！"
         snprintf(info_text, sizeof(info_text), 
-                 "#87CEEB %s# #FFFFFF 来了 # #87CEEB %d# #FFFFFF 次！#", 
+                 "#87CEEB %s##FFFFFF 来了##87CEEB %d##FFFFFF 次！#", 
                  bird_name.c_str(), count);
     }
 
@@ -417,6 +442,10 @@ void BirdManager::showBirdInfo(uint16_t bird_id, const std::string& bird_name, b
     
     // 显示标签
     lv_obj_clear_flag(guider_ui.scenes_bird_info_label, LV_OBJ_FLAG_HIDDEN);
+    
+    // 记录显示时间
+    bird_info_show_time_ = getCurrentTime();
+    bird_info_visible_ = true;
     
     // 记录日志
     char log_msg[128];
