@@ -34,6 +34,9 @@ void processBirdTriggerRequest();
 // 便捷函数：手动触发小鸟
 bool triggerBird();
 
+// 便捷函数：处理手势事件
+void onGesture(int gesture_type);
+
 // 便捷函数：获取观鸟统计
 void showBirdStatistics();
 
@@ -43,6 +46,7 @@ void listBirds();
 // 便捷函数：检查系统状态
 bool isBirdManagerInitialized();
 bool isAnimationPlaying();
+bool isStatsViewVisible();
 int getStatisticsCount();
 
 // 全局观鸟管理器实例（外部声明）

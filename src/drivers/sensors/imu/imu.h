@@ -16,7 +16,11 @@ enum GestureType {
     GESTURE_BACKWARD_TILT,   // 向后倾斜
     GESTURE_SHAKE,           // 摇动
     GESTURE_DOUBLE_TILT,     // 双向倾斜
-    GESTURE_LEFT_RIGHT_TILT  // 左右倾斜 - 触发小鸟（10秒CD）
+    GESTURE_LEFT_RIGHT_TILT, // 左右倾斜 - 触发小鸟（10秒CD）
+    GESTURE_FORWARD_HOLD,    // 前倾保持3秒
+    GESTURE_BACKWARD_HOLD,   // 后倾保持3秒
+    GESTURE_LEFT_TILT,       // 左倾
+    GESTURE_RIGHT_TILT       // 右倾
 };
 
 extern int32_t encoder_diff;
@@ -43,6 +47,14 @@ private:
 	// 左右倾检测相关变量（简化版）
 	unsigned long last_tilt_trigger_time;  // 上次触发时间（用于10秒CD）
 	bool was_tilted;                       // 上一帧是否处于倾斜状态
+	
+	// 持续手势检测相关变量
+	unsigned long forward_hold_start;      // 前倾开始时间
+	unsigned long backward_hold_start;     // 后倾开始时间
+	unsigned long left_tilt_start;         // 左倾开始时间
+	unsigned long right_tilt_start;        // 右倾开始时间
+	bool forward_hold_triggered;           // 前倾保持是否已触发
+	bool backward_hold_triggered;          // 后倾保持是否已触发
 
 public:
 	void init();
@@ -66,6 +78,8 @@ private:
 	bool isForwardTilt();
 	bool isBackwardTilt();
 	bool isLeftOrRightTilt();
+	bool isLeftTilt();
+	bool isRightTilt();
 	void resetGestureState();
 
 };

@@ -198,82 +198,71 @@ GestureType IMU::detectGesture()
 
 	unsigned long current_time = millis();
 
-	// 优先检测左右倾斜手势（单次触发，10秒CD）
-	bool is_tilting_now = isLeftOrRightTilt();
-	
-	// 检测倾斜状态的变化：从不倾斜到倾斜（上升沿触发）
-	if (is_tilting_now && !was_tilted) {
-		// 刚开始倾斜，检查CD时间
-		unsigned long time_since_last_trigger = current_time - last_tilt_trigger_time;
-		
-		if (time_since_last_trigger >= 10000) {  // 10秒CD
-			// CD已过，可以触发
-			last_tilt_trigger_time = current_time;
-			was_tilted = true;
-			Serial.println("Gesture detected: LEFT_RIGHT_TILT");
-			return GESTURE_LEFT_RIGHT_TILT;
-		} else {
-			// CD未过，提示剩余时间
-			unsigned long remaining = 10000 - time_since_last_trigger;
-			Serial.printf("Tilt detected but CD active, %lu ms remaining\n", remaining);
-			was_tilted = true;  // 更新状态避免重复提示
-			return GESTURE_NONE;
-		}
-	} else if (!is_tilting_now && was_tilted) {
-		// 从倾斜恢复到正常，重置状态
-		was_tilted = false;
-		Serial.println("Tilt ended");
-	}
-
-	// 手势冷却时间，避免重复触发
-	if (current_time - last_gesture_time < 1000) {
-		return GESTURE_NONE;
-	}
-
-	GestureType detected = GESTURE_NONE;
-	// 检测前倾手势
+	// 检测持续前倾手势（保持3秒）
 	if (isForwardTilt()) {
-		detected = GESTURE_FORWARD_TILT;
-		Serial.println("Gesture detected: FORWARD_TILT");
-
-		// 记录倾斜序列，用于检测双向倾斜
-		if (was_backward_tilt && (current_time - last_gesture_time < 2000)) {
-			consecutive_tilt_count++;
-			if (consecutive_tilt_count >= 3) {
-				detected = GESTURE_DOUBLE_TILT;
-				Serial.println("Gesture detected: DOUBLE_TILT (sequence completed)");
-			}
-		} else {
-			was_forward_tilt = true;
-			was_backward_tilt = false;
-			consecutive_tilt_count = 1;
+		if (forward_hold_start == 0) {
+			// 开始前倾
+			forward_hold_start = current_time;
+			forward_hold_triggered = false;
+		} else if (!forward_hold_triggered && (current_time - forward_hold_start >= 3000)) {
+			// 保持3秒，触发
+			forward_hold_triggered = true;
+			Serial.println("Gesture detected: FORWARD_HOLD (3s)");
+			return GESTURE_FORWARD_HOLD;
 		}
+	} else {
+		// 不再前倾，重置
+		forward_hold_start = 0;
+		forward_hold_triggered = false;
 	}
-	// 检测后倾手势
-	else if (isBackwardTilt()) {
-		detected = GESTURE_BACKWARD_TILT;
-		Serial.println("Gesture detected: BACKWARD_TILT");
-
-		// 记录倾斜序列
-		if (was_forward_tilt && (current_time - last_gesture_time < 2000)) {
-			consecutive_tilt_count++;
-			if (consecutive_tilt_count >= 3) {
-				detected = GESTURE_DOUBLE_TILT;
-				Serial.println("Gesture detected: DOUBLE_TILT (sequence completed)");
-			}
-		} else {
-			was_backward_tilt = true;
-			was_forward_tilt = false;
-			consecutive_tilt_count = 1;
+	
+	// 检测持续后倾手势（保持3秒）
+	if (isBackwardTilt()) {
+		if (backward_hold_start == 0) {
+			// 开始后倾
+			backward_hold_start = current_time;
+			backward_hold_triggered = false;
+		} else if (!backward_hold_triggered && (current_time - backward_hold_start >= 3000)) {
+			// 保持3秒，触发
+			backward_hold_triggered = true;
+			Serial.println("Gesture detected: BACKWARD_HOLD (3s)");
+			return GESTURE_BACKWARD_HOLD;
 		}
+	} else {
+		// 不再后倾，重置
+		backward_hold_start = 0;
+		backward_hold_triggered = false;
+	}
+	
+	// 检测左倾手势（0.5秒）
+	if (isLeftTilt()) {
+		if (left_tilt_start == 0) {
+			left_tilt_start = current_time;
+		} else if (current_time - left_tilt_start >= 500) {
+			// 保持0.5秒，触发
+			left_tilt_start = 0;
+			Serial.println("Gesture detected: LEFT_TILT");
+			return GESTURE_LEFT_TILT;
+		}
+	} else {
+		left_tilt_start = 0;
+	}
+	
+	// 检测右倾手势（0.5秒）
+	if (isRightTilt()) {
+		if (right_tilt_start == 0) {
+			right_tilt_start = current_time;
+		} else if (current_time - right_tilt_start >= 500) {
+			// 保持0.5秒，触发
+			right_tilt_start = 0;
+			Serial.println("Gesture detected: RIGHT_TILT");
+			return GESTURE_RIGHT_TILT;
+		}
+	} else {
+		right_tilt_start = 0;
 	}
 
-	// 更新手势时间
-	if (detected != GESTURE_NONE) {
-		last_gesture_time = current_time;
-	}
-
-	return detected;
+	return GESTURE_NONE;
 }
 
 // 检测摇动手势
@@ -307,15 +296,15 @@ bool IMU::isShaking()
 // 检测前倾手势
 bool IMU::isForwardTilt()
 {
-	// 前倾：Y轴负值较大
-	return (ay < -5000);
+	// 前倾：X轴负值较大（ax < -10000）
+	return (ax < -10000);
 }
 
 // 检测后倾手势
 bool IMU::isBackwardTilt()
 {
-	// 后倾：Y轴正值较大
-	return (ay > 5000);
+	// 后倾：X轴正值较大（ax > 14000）
+	return (ax > 14000);
 }
 
 // 检测左倾或右倾手势
@@ -340,6 +329,20 @@ bool IMU::isLeftOrRightTilt()
 	return is_tilting;
 }
 
+// 检测左倾手势
+bool IMU::isLeftTilt()
+{
+	// 左倾：Y轴正值大于10000
+	return (ay > 10000);
+}
+
+// 检测右倾手势
+bool IMU::isRightTilt()
+{
+	// 右倾：Y轴负值小于-10000
+	return (ay < -10000);
+}
+
 // 重置手势状态
 void IMU::resetGestureState()
 {
@@ -352,4 +355,12 @@ void IMU::resetGestureState()
 	// 重置左右倾相关状态
 	last_tilt_trigger_time = 0;
 	was_tilted = false;
+	
+	// 重置持续手势状态
+	forward_hold_start = 0;
+	backward_hold_start = 0;
+	left_tilt_start = 0;
+	right_tilt_start = 0;
+	forward_hold_triggered = false;
+	backward_hold_triggered = false;
 }

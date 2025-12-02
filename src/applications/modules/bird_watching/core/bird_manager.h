@@ -5,6 +5,7 @@
 #include "bird_selector.h"
 #include "bird_stats.h"
 #include "bird_types.h"
+#include "../ui/stats_view.h"
 #include "drivers/sensors/imu/imu.h"
 #include <string>
 #include <vector>
@@ -78,6 +79,15 @@ public:
     
     // 检查并隐藏小鸟信息（如果超时）
     void checkAndHideBirdInfo();
+    
+    // 显示/隐藏统计界面
+    void showStatsView();
+    void hideStatsView();
+    bool isStatsViewVisible() const;
+    
+    // 统计界面页面切换
+    void statsViewPreviousPage();
+    void statsViewNextPage();
 
 private:
     bool initialized_;                           // 初始化状态
@@ -86,6 +96,7 @@ private:
     BirdAnimation* animation_;                   // 动画播放器
     BirdSelector* selector_;                     // 小鸟选择器
     BirdStatistics* statistics_;                 // 统计系统
+    StatsView* stats_view_;                      // 统计界面
     lv_obj_t* display_obj_;                      // 显示对象（用于访问GUI）
 
     uint32_t last_auto_trigger_time_;            // 上次自动触发时间

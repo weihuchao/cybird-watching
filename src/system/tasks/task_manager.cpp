@@ -275,10 +275,45 @@ void TaskManager::systemTaskFunction(void* parameter)
 
             // 检测手势并触发相应事件
             GestureType gesture = mpu.detectGesture();
-            if (gesture == GESTURE_LEFT_RIGHT_TILT) {
-                // 左右倾斜 - 触发小鸟（10秒CD）
-                LOG_INFO("SYS_TASK", "Left/Right tilt detected, triggering bird");
-                BirdWatching::triggerBird();
+            if (gesture != GESTURE_NONE) {
+                // 将手势类型转发给BirdWatching系统
+                // BirdManager会根据当前状态决定如何响应
+                switch (gesture) {
+                    case GESTURE_FORWARD_HOLD:
+                        LOG_INFO("SYS_TASK", "Forward hold detected (3s)");
+                        if (manager->takeLVGLMutex(100)) {
+                            BirdWatching::onGesture(GESTURE_FORWARD_HOLD);
+                            manager->giveLVGLMutex();
+                        }
+                        break;
+                    
+                    case GESTURE_BACKWARD_HOLD:
+                        LOG_INFO("SYS_TASK", "Backward hold detected (3s)");
+                        if (manager->takeLVGLMutex(100)) {
+                            BirdWatching::onGesture(GESTURE_BACKWARD_HOLD);
+                            manager->giveLVGLMutex();
+                        }
+                        break;
+                    
+                    case GESTURE_LEFT_TILT:
+                        LOG_DEBUG("SYS_TASK", "Left tilt detected");
+                        if (manager->takeLVGLMutex(100)) {
+                            BirdWatching::onGesture(GESTURE_LEFT_TILT);
+                            manager->giveLVGLMutex();
+                        }
+                        break;
+                    
+                    case GESTURE_RIGHT_TILT:
+                        LOG_DEBUG("SYS_TASK", "Right tilt detected");
+                        if (manager->takeLVGLMutex(100)) {
+                            BirdWatching::onGesture(GESTURE_RIGHT_TILT);
+                            manager->giveLVGLMutex();
+                        }
+                        break;
+                    
+                    default:
+                        break;
+                }
             }
         }
 

@@ -18,6 +18,7 @@ BirdManager::BirdManager()
     , animation_(nullptr)
     , selector_(nullptr)
     , statistics_(nullptr)
+    , stats_view_(nullptr)
     , display_obj_(nullptr)
     , last_auto_trigger_time_(0)
     , last_stats_save_time_(0)
@@ -41,6 +42,9 @@ BirdManager::~BirdManager() {
     }
     if (selector_) {
         delete selector_;
+    }
+    if (stats_view_) {
+        delete stats_view_;
     }
 }
 
@@ -92,6 +96,12 @@ void BirdManager::processTriggerRequest() {
     }
 
     // 注意: 此函数在UI任务中调用,已持有LVGL锁
+    
+    // 如果统计界面可见，不处理触发请求
+    if (isStatsViewVisible()) {
+        trigger_request_.pending = false;
+        return;
+    }
     
     // 检查并隐藏小鸟信息（如果超时）
     checkAndHideBirdInfo();
@@ -155,24 +165,51 @@ void BirdManager::onGestureEvent(int gesture_type) {
         return;
     }
 
+    static unsigned long last_tilt_trigger_time = 0; // 左右倾触发新鸟的CD
+    unsigned long current_time = getCurrentTime();
+
+    LOG_DEBUG("BIRD", (String("Gesture event received: ") + String(gesture_type) + 
+              String(", Stats view visible: ") + String(isStatsViewVisible() ? "yes" : "no")).c_str());
+
     switch (gesture_type) {
-        case 0: // 向前倾斜 - 触发小鸟
-            LOG_DEBUG("BIRD", "Forward tilt detected, triggering bird");
-            triggerBird(TRIGGER_GESTURE);
+        case GESTURE_FORWARD_HOLD: // 前倾保持3秒 - 进入数据界面
+            LOG_INFO("BIRD", "Forward hold 3s detected, showing stats view");
+            showStatsView();
             break;
 
-        case 1: // 向后倾斜 - 显示统计
-            LOG_DEBUG("BIRD", "Backward tilt detected, showing statistics");
-            showStatistics();
+        case GESTURE_BACKWARD_HOLD: // 后倾保持3秒 - 退出数据界面
+            LOG_INFO("BIRD", "Backward hold 3s detected, hiding stats view");
+            hideStatsView();
             break;
 
-        case 2: // 摇动 - 随机触发
-            LOG_DEBUG("BIRD", "Shake detected, random triggering");
-            triggerBird(TRIGGER_GESTURE);
+        case GESTURE_LEFT_TILT: // 左倾
+        case GESTURE_RIGHT_TILT: // 右倾
+            if (isStatsViewVisible()) {
+                // 统计界面中：切换页面（无CD限制）
+                if (gesture_type == GESTURE_LEFT_TILT) {
+                    LOG_DEBUG("BIRD", "Left tilt in stats view, previous page");
+                    statsViewPreviousPage();
+                } else {
+                    LOG_DEBUG("BIRD", "Right tilt in stats view, next page");
+                    statsViewNextPage();
+                }
+            } else {
+                // 主界面中：触发新鸟（10秒CD）
+                unsigned long time_since_last_trigger = current_time - last_tilt_trigger_time;
+                if (time_since_last_trigger >= 10000) {
+                    LOG_DEBUG("BIRD", (String(gesture_type == GESTURE_LEFT_TILT ? "Left" : "Right") + 
+                              String(" tilt in main view, triggering bird")).c_str());
+                    triggerBird(TRIGGER_GESTURE);
+                    last_tilt_trigger_time = current_time;
+                } else {
+                    unsigned long remaining = 10000 - time_since_last_trigger;
+                    LOG_DEBUG("BIRD", (String("Tilt ignored, CD active: ") + String(remaining) + 
+                              String("ms remaining")).c_str());
+                }
+            }
             break;
 
         default:
-            LOG_DEBUG("BIRD", "Unknown gesture detected");
             break;
     }
 }
@@ -215,6 +252,13 @@ bool BirdManager::initializeSubsystems(lv_obj_t* display_obj) {
     statistics_ = new BirdStatistics();
     if (!statistics_ || !statistics_->initialize()) {
         LOG_ERROR("BIRD", "Failed to initialize bird statistics");
+        return false;
+    }
+
+    // 初始化统计界面
+    stats_view_ = new StatsView();
+    if (!stats_view_ || !stats_view_->initialize(display_obj, statistics_, selector_)) {
+        LOG_ERROR("BIRD", "Failed to initialize stats view");
         return false;
     }
 
@@ -455,6 +499,69 @@ void BirdManager::showBirdInfo(uint16_t bird_id, const std::string& bird_name, b
         snprintf(log_msg, sizeof(log_msg), "Displayed bird info: %s (x%d)", bird_name.c_str(), count);
     }
     LOG_INFO("BIRD", log_msg);
+}
+
+void BirdManager::showStatsView() {
+    if (!stats_view_) {
+        LOG_ERROR("BIRD", "Stats view not available");
+        return;
+    }
+
+    // 停止动画
+    if (animation_ && isPlaying()) {
+        animation_->stop();
+    }
+
+    // 隐藏小鸟信息
+    hideBirdInfo();
+
+    // 显示统计界面
+    stats_view_->show();
+    LOG_INFO("BIRD", "Stats view shown");
+}
+
+void BirdManager::hideStatsView() {
+    if (!stats_view_) {
+        return;
+    }
+
+    stats_view_->hide();
+    LOG_INFO("BIRD", "Stats view hidden");
+    
+    // 退出统计界面后，显示一个小鸟
+    // 逻辑与初始化时相同：有历史数据则随机选择已记录的小鸟（不计数），没有则触发新鸟（计数）
+    if (statistics_ && statistics_->hasHistoricalData()) {
+        // 有历史数据：随机选择一个已经遇见过的小鸟，不计数
+        std::vector<uint16_t> encountered_birds = statistics_->getEncounteredBirdIds();
+        if (!encountered_birds.empty()) {
+            // 随机选择一个
+            int random_index = std::rand() % encountered_birds.size();
+            uint16_t bird_id = encountered_birds[random_index];
+            
+            LOG_INFO("BIRD", (String("Displaying random encountered bird (ID: ") + String(bird_id) + ")").c_str());
+            playBird(bird_id, false); // 不记录统计
+        }
+    } else {
+        // 没有历史数据：触发一次新鸟，计数
+        LOG_INFO("BIRD", "No historical data, triggering new bird");
+        triggerBird(TRIGGER_AUTO);
+    }
+}
+
+bool BirdManager::isStatsViewVisible() const {
+    return stats_view_ ? stats_view_->isVisible() : false;
+}
+
+void BirdManager::statsViewPreviousPage() {
+    if (stats_view_) {
+        stats_view_->previousPage();
+    }
+}
+
+void BirdManager::statsViewNextPage() {
+    if (stats_view_) {
+        stats_view_->nextPage();
+    }
 }
 
 } // namespace BirdWatching

@@ -52,6 +52,15 @@ bool triggerBird() {
     return g_birdManager->triggerBird(TRIGGER_MANUAL);
 }
 
+void onGesture(int gesture_type) {
+    if (!g_birdManager) {
+        LOG_ERROR("BIRD", "Bird watching system not initialized");
+        return;
+    }
+
+    g_birdManager->onGestureEvent(gesture_type);
+}
+
 void showBirdStatistics() {
     if (!g_birdManager) {
         LOG_ERROR("BIRD", "Bird watching system not initialized");
@@ -108,6 +117,13 @@ bool isAnimationPlaying() {
         return false;
     }
     return g_birdManager->isPlaying();
+}
+
+bool isStatsViewVisible() {
+    if (!g_birdManager) {
+        return false;
+    }
+    return g_birdManager->isStatsViewVisible();
 }
 
 int getStatisticsCount() {
