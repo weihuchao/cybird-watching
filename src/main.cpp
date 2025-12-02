@@ -75,11 +75,7 @@ void setup()
     /*** Init on-board RGB ***/
     LOG_INFO("MAIN", "Initializing RGB LED...");
     rgb.init();
-    LOG_INFO("MAIN", "RGB LED initialized");
-
-    LOG_INFO("MAIN", "Setting RGB colors...");
-    rgb.setBrightness(0.1).setRGB(0, 0, 122, 204).setRGB(1, 0, 122, 204);
-    LOG_INFO("MAIN", "RGB colors set");
+    LOG_INFO("MAIN", "RGB LED initialized (default: OFF)");
 
     /*** Init micro SD-Card ***/
     LOG_INFO("MAIN", "Initializing SD card...");

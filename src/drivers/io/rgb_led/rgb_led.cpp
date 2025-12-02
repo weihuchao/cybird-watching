@@ -4,7 +4,13 @@
 void Pixel::init()
 {
 	FastLED.addLeds<WS2812, RGB_LED_PIN, GRB>(color_buffers, RGB_LED_NUM);
-	FastLED.setBrightness(200);
+	// 初始化时默认关闭LED
+	FastLED.setBrightness(0);
+	// 设置默认颜色为黑色（关闭）
+	for (int i = 0; i < RGB_LED_NUM; i++) {
+		color_buffers[i] = CRGB(0, 0, 0);
+	}
+	FastLED.show();
 }
 
 Pixel& Pixel::setRGB(int id, int r, int g, int b)
