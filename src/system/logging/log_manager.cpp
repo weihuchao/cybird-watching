@@ -247,8 +247,8 @@ String LogManager::getLogContent(int maxLines) {
         return content;
     }
 
-    // 限制最大行数以避免内存问题
-    const int safeMaxLines = min(maxLines, 500);
+    // 限制最大行数以避免内存问题和看门狗超时
+    const int safeMaxLines = min(maxLines, 100);
 
     File logFile = SD.open(logFilePath, FILE_READ);
     if (!logFile) {
@@ -263,47 +263,61 @@ String LogManager::getLogContent(int maxLines) {
         return content;
     }
 
-    // 使用简单的环形缓冲区，限制大小
-    const int bufferSize = safeMaxLines + 10;
-    String lineBuffer[bufferSize]; // 栈分配，避免动态内存
-    int lineIndex = 0;
-    int totalLines = 0;
-    bool bufferFilled = false;
+    // 策略：从文件末尾开始，向前读取足够的数据以获取最后N行
+    // 估算：每行平均100字节，读取 safeMaxLines * 150 字节应该足够
+    const size_t readSize = min((size_t)(safeMaxLines * 150), (size_t)fileSize);
+    const size_t readPos = (fileSize > readSize) ? (fileSize - readSize) : 0;
 
-    // 逐行读取文件
-    logFile.seek(0);
-    while (logFile.available()) {
+    // 移动到读取位置
+    logFile.seek(readPos);
+
+    // 如果不是从文件开头读取，跳过第一个不完整的行
+    if (readPos > 0) {
+        logFile.readStringUntil('\n'); // 丢弃第一个可能不完整的行
+    }
+
+    // 使用动态分配的vector
+    std::vector<String> lineBuffer;
+    lineBuffer.reserve(safeMaxLines);
+    
+    int totalLines = 0;
+    int linesProcessed = 0;
+    
+    // 读取剩余行
+    while (logFile.available() && totalLines < safeMaxLines * 2) { // 读取最多2倍行数以确保足够
         String line = logFile.readStringUntil('\n');
         if (line.length() > 0) {
             // 限制行长度避免内存问题
-            if (line.length() > 512) {
-                line = line.substring(0, 512) + "...";
+            if (line.length() > 256) {
+                line = line.substring(0, 256) + "...";
             }
 
-            lineBuffer[lineIndex] = line;
-            lineIndex = (lineIndex + 1) % bufferSize;
+            // 使用环形缓冲区逻辑
+            if (lineBuffer.size() < safeMaxLines) {
+                lineBuffer.push_back(line);
+            } else {
+                // 移除最旧的行，添加新行
+                lineBuffer.erase(lineBuffer.begin());
+                lineBuffer.push_back(line);
+            }
             totalLines++;
-
-            if (!bufferFilled && lineIndex == 0) {
-                bufferFilled = true;
-            }
+        }
+        
+        // 每处理5行，让出CPU并喂狗
+        linesProcessed++;
+        if (linesProcessed % 5 == 0) {
+            yield();
         }
     }
     logFile.close();
 
-    // 计算实际要显示的行数
-    int linesToShow = min(totalLines, safeMaxLines);
-    int startIndex = (bufferFilled) ?
-                    ((lineIndex - linesToShow + bufferSize) % bufferSize) :
-                    0;
-
     // 构建结果
-    content = "=== Last " + String(linesToShow) + " lines (of " + String(totalLines) + " total) ===\n";
+    int linesToShow = lineBuffer.size();
+    content = "=== Last " + String(linesToShow) + " lines ===\n";
 
     for (int i = 0; i < linesToShow; i++) {
-        int idx = (startIndex + i) % bufferSize;
-        if (lineBuffer[idx].length() > 0) {
-            content += lineBuffer[idx] + "\n";
+        if (lineBuffer[i].length() > 0) {
+            content += lineBuffer[i] + "\n";
         }
     }
 

@@ -124,8 +124,8 @@ void BirdAnimation::startLoop() {
     // 设置帧间隔为50ms
     frame_interval_ = 50;
 
-    // 创建播放定时器，50ms后触发下一帧
-    play_timer_ = lv_timer_create(timerCallback, 50, this); // LVGL 9.x: 移除优先级参数
+    // 创建播放定时器，10ms后触发下一帧
+    play_timer_ = lv_timer_create(timerCallback, 10, this); // LVGL 9.x: 移除优先级参数
     if (!play_timer_) {
         LOG_ERROR("ANIM", "Failed to create animation timer");
         is_playing_ = false;
@@ -241,7 +241,7 @@ void BirdAnimation::playNextFrame() {
     if (play_timer_) {
         lv_timer_del(play_timer_);
     }
-    play_timer_ = lv_timer_create(timerCallback, 50, this);
+    play_timer_ = lv_timer_create(timerCallback, 10, this);
 }
 
 
@@ -319,7 +319,7 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
 
     // 检查可用内存
     size_t free_heap = ESP.getFreeHeap();
-    LOG_DEBUG("ANIM", "Loading " + String(file_path.c_str()) + ", file_size: " + String(data_size) + ", free_heap: " + String(free_heap));
+    // LOG_DEBUG("ANIM", "Loading " + String(file_path.c_str()) + ", file_size: " + String(data_size) + ", free_heap: " + String(free_heap)); // 注释掉以避免日志洪流
 
     if (free_heap < data_size + 4096) { // 预留4KB额外空间
         LOG_ERROR("ANIM", "Insufficient memory - need " + String(data_size) + " + 4096, have " + String(free_heap));
