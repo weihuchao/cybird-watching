@@ -7,6 +7,7 @@
 
 import time
 import threading
+import shutil
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable, Iterator, Tuple
 from dataclasses import dataclass
@@ -114,6 +115,9 @@ class MP4BatchProcessor:
             for ext in video_extensions:
                 video_files.extend(input_dir.glob(f"*{ext}"))
                 video_files.extend(input_dir.glob(f"*{ext.upper()}"))
+
+            # 去重（Windows系统中大小写不敏感可能导致重复）
+            video_files = list(set(video_files))
 
             # 按文件名排序
             video_files.sort(key=lambda x: x.name.lower())
@@ -412,6 +416,182 @@ class MP4BatchProcessor:
 
         except Exception as e:
             raise BatchProcessorError(f"批量处理失败: {e}")
+
+    def copy_bin_files_with_palindrome_naming(self, output_dir: Path) -> bool:
+        """拷贝导出的所有.bin文件，按回文的形式命名
+
+        按照用户要求，将导出的所有.bin文件按回文形式命名拷贝：
+        例如导出1-40.bin，那么41-80.bin实际上是40-1.bin的数据。
+
+        Args:
+            output_dir: 包含.bin文件的输出目录
+
+        Returns:
+            bool: 是否成功完成拷贝
+        """
+        try:
+            # 查找所有.bin文件
+            bin_files = list(output_dir.glob("*.bin"))
+
+            if not bin_files:
+                print("未找到任何.bin文件")
+                return False
+
+            print(f"\n开始拷贝 {len(bin_files)} 个.bin文件，使用回文命名...")
+
+            # 按文件名中的数字排序
+            bin_files.sort(key=lambda x: self._extract_frame_number(x.name))
+
+            # 收集所有文件编号
+            frame_numbers = [self._extract_frame_number(f.name) for f in bin_files]
+            if not frame_numbers:
+                print("无法从.bin文件名中提取帧编号")
+                return False
+
+            min_frame = min(frame_numbers)
+            max_frame = max(frame_numbers)
+            total_frames = len(bin_files)
+
+            print(f"原始帧范围: {min_frame}-{max_frame} ({total_frames}帧)")
+
+            # 为每个原始文件创建回文命名的拷贝
+            copied_count = 0
+            for i, original_file in enumerate(bin_files):
+                original_frame_num = self._extract_frame_number(original_file.name)
+                if original_frame_num is None:
+                    continue
+
+                # 计算回文目标帧编号
+                # 回文文件从 max_frame + 1 开始，内容倒序映射
+                # 1.bin的内容 → 80.bin, 2.bin的内容 → 79.bin, ..., 40.bin的内容 → 41.bin
+                palindrome_frame_num = (max_frame + 1) + (max_frame - original_frame_num)
+
+                # 构建新文件名
+                new_filename = f"{palindrome_frame_num}.bin"
+                new_file_path = output_dir / new_filename
+
+                # 如果目标文件已存在，跳过
+                if new_file_path.exists() and new_file_path != original_file:
+                    print(f"跳过已存在文件: {new_filename}")
+                    continue
+
+                # 如果目标文件与源文件相同，跳过
+                if new_file_path == original_file:
+                    continue
+
+                try:
+                    # 拷贝文件
+                    shutil.copy2(original_file, new_file_path)
+                    copied_count += 1
+
+                    if copied_count % 10 == 0 or copied_count == total_frames:
+                        print(f"已拷贝 {copied_count}/{total_frames} 个文件")
+
+                except Exception as e:
+                    print(f"拷贝文件失败 {original_file.name} -> {new_filename}: {e}")
+                    continue
+
+            print(f"完成回文拷贝: 生成了 {copied_count} 个回文.bin文件")
+            print(f"新文件范围: {min_frame}-{max_frame} (原始), {max_frame}-{min_frame} (回文)")
+
+            return copied_count > 0
+
+        except Exception as e:
+            print(f"回文拷贝失败: {e}")
+            return False
+
+    def _extract_frame_number(self, filename: str) -> Optional[int]:
+        """从文件名中提取帧编号
+
+        支持多种命名格式：
+        - 数字.bin (如: 1.bin, 40.bin)
+        - 前缀_数字.bin (如: video_1.bin)
+        - 视频_数字.bin (如: myvideo_0001.bin)
+
+        Args:
+            filename: 文件名
+
+        Returns:
+            Optional[int]: 帧编号，如果无法提取则返回None
+        """
+        import re
+
+        # 移除文件扩展名
+        name_without_ext = Path(filename).stem
+
+        # 尝试匹配不同的数字格式
+        patterns = [
+            r'(\d+)$',           # 以数字结尾 (如: video1, 123)
+            r'(\d+)[^.]*$',      # 包含数字 (通用匹配)
+            r'(\d{1,4})$',       # 1-4位数字结尾
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, name_without_ext)
+            if match:
+                try:
+                    return int(match.group(1))
+                except ValueError:
+                    continue
+
+        # 如果上述方法都失败，尝试直接提取所有数字
+        numbers = re.findall(r'\d+', name_without_ext)
+        if numbers:
+            try:
+                return int(numbers[-1])  # 取最后一个数字
+            except ValueError:
+                pass
+
+        return None
+
+    def process_videos_with_palindrome_copy(self, input_dir: Path, output_dir: Path,
+                                          config: ProcessConfig) -> BatchProcessResult:
+        """批量处理视频并自动创建回文命名的.bin文件拷贝
+
+        这个方法首先执行常规的视频批量处理，然后在完成时
+        自动调用回文拷贝功能为所有生成的.bin文件创建回文版本。
+
+        Args:
+            input_dir: 输入目录
+            output_dir: 输出目录
+            config: 处理配置
+
+        Returns:
+            BatchProcessResult: 批量处理结果
+        """
+        # 执行常规批量处理
+        result = self.process_videos(input_dir, output_dir, config)
+
+        # 如果处理成功且生成了.bin文件，执行回文拷贝
+        if result.successful_videos > 0 and result.total_rgb565_files > 0:
+            print(f"\n{'='*60}")
+            print("开始创建回文命名的.bin文件拷贝...")
+
+            # 查找所有包含.bin文件的子目录
+            bin_dirs = set()
+            for process_result in result.results:
+                if process_result.success:
+                    for file_path in process_result.rgb565_files:
+                        if file_path.suffix == '.bin':
+                            bin_dirs.add(file_path.parent)
+
+            # 对每个包含.bin文件的目录执行回文拷贝
+            total_copied = 0
+            for bin_dir in bin_dirs:
+                if self.copy_bin_files_with_palindrome_naming(bin_dir):
+                    # 计算该目录中的.bin文件数量（包括新创建的回文文件）
+                    all_bins = list(bin_dir.glob("*.bin"))
+                    total_copied += len(all_bins)
+                    print(f"目录 {bin_dir.name}: {len(all_bins)} 个.bin文件（包含回文拷贝）")
+
+            if total_copied > 0:
+                print(f"回文拷贝完成! 总共生成了 {total_copied} 个.bin文件")
+            else:
+                print("未找到适合的.bin文件进行回文拷贝")
+
+            print(f"{'='*60}")
+
+        return result
 
     @staticmethod
     def create_process_config(frame_rate: Optional[int] = None,

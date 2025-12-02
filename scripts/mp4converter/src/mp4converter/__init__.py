@@ -144,11 +144,12 @@ def process(video_path: Path, output_dir: Path, frame_rate: Optional[int],
 @click.option('--workers', type=int, default=4, help='并行处理线程数')
 @click.option('--continue-on-error', is_flag=True, help='遇到错误时继续处理其他文件')
 @click.option('--keep-temp', is_flag=True, help='保留临时文件用于调试')
+@click.option('--palindrome', is_flag=True, help='导出完成后创建回文命名的.bin文件拷贝（用于倒序播放）')
 def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
          frame_count: Optional[int], resize: Optional[str],
          watermark_region: Optional[str], output_format: str,
          rgb565_format: str, max_width: Optional[int], max_height: Optional[int],
-         workers: int, continue_on_error: bool, keep_temp: bool):
+         workers: int, continue_on_error: bool, keep_temp: bool, palindrome: bool):
     """批量处理目录中的所有MP4文件
 
     INPUT_DIR: 包含MP4文件的输入目录
@@ -160,6 +161,8 @@ def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
         mp4-converter batch videos/ output/ --frame-count 10 --output-format png --continue-on-error
 
         mp4-converter batch videos/ output/ --output-format rgb565 --rgb565-format c_array
+
+        mp4-converter batch videos/ output/ --frame-count 40 --palindrome  # 创建回文拷贝用于倒序播放
     """
     try:
         print(f"开始批量处理:")
@@ -187,8 +190,12 @@ def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
         # 创建批量处理器
         processor = MP4BatchProcessor(max_workers=workers)
 
-        # 批量处理
-        result = processor.process_videos(input_dir, output_dir, process_config)
+        # 批量处理，如果启用了palindrome选项则使用回文拷贝功能
+        if palindrome:
+            print("  启用回文拷贝模式（用于倒序播放）")
+            result = processor.process_videos_with_palindrome_copy(input_dir, output_dir, process_config)
+        else:
+            result = processor.process_videos(input_dir, output_dir, process_config)
 
         # 根据结果设置退出码
         if result.failed_videos > 0 and not continue_on_error:
