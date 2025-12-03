@@ -150,7 +150,7 @@ static bool load_logo_from_sd(const char* file_path)
 	logo_img_dsc->data_size = data_size;
 	logo_img_dsc->data = logo_img_data;
 
-	LOG_INFO("GUI", "Logo loaded: " + String(width) + "x" + String(height) + ", size=" + String(data_size));
+	LOG_INFO("GUI", "Logo loaded: " + String(width) + "x" + String(height));
 	return true;
 }
 
@@ -159,7 +159,7 @@ extern "C" {
 
 void lv_init_gui(void)
 {
-	// 先尝试从SD卡加载logo图片
+	// 先尝试从SD卡加载logo图片（保持黑屏状态）
 	if (load_logo_from_sd("/static/logo.bin")) {
 		LOG_INFO("GUI", "Logo loaded successfully, displaying...");
 		
@@ -184,15 +184,14 @@ void lv_init_gui(void)
 		// 居中显示
 		lv_obj_center(logo_img);
 		
-		// 加载logo屏幕
+		// 加载logo屏幕（从黑屏切换到logo）
 		lv_scr_load(logo_scr);
 		
 		// 记录显示时间
 		logo_show_time = millis();
 		logo_visible = true;
 		
-		LOG_INFO("GUI", "Logo screen loaded, size: " + String(logo_img_dsc->header.w) + "x" + String(logo_img_dsc->header.h));
-		LOG_INFO("GUI", "Logo will auto-hide after 5 seconds");
+		LOG_INFO("GUI", "Logo screen loaded");
 	} else {
 		LOG_WARN("GUI", "Failed to load logo, showing bird scene directly");
 		// 如果logo加载失败,直接加载小鸟界面(不创建logo屏幕)

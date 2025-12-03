@@ -76,7 +76,10 @@ void Display::init()
 	LOG_INFO("TFT", "tft.begin() completed");
 
 	tft.setRotation(4); /* mirror */
-	LOG_INFO("TFT", "TFT rotation set");
+	
+	// 立即填充黑色，避免显示未初始化的内容
+	tft.fillScreen(TFT_BLACK);
+	
 	LOG_INFO("TFT", "TFT initialization successful");
 
 	/* Create the display */
@@ -86,6 +89,12 @@ void Display::init()
 	/* Set display buffers - the old draw_buf approach is deprecated */
 	static lv_color_t buf1[240 * 10];
 	lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+	
+	// 创建并加载一个默认的黑色屏幕，避免LVGL渲染未定义内容
+	lv_obj_t* black_scr = lv_obj_create(NULL);
+	lv_obj_set_style_bg_color(black_scr, lv_color_black(), 0);
+	lv_obj_set_style_bg_opa(black_scr, LV_OPA_COVER, 0);
+	lv_scr_load(black_scr);
 }
 
 void Display::routine()
