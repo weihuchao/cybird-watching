@@ -29,3 +29,36 @@ Pixel& Pixel::setBrightness(float duty)
 
 	return *this;
 }
+
+void Pixel::flash(uint8_t r, uint8_t g, uint8_t b, int duration_ms)
+{
+	// 保存当前亮度
+	uint8_t prev_brightness = FastLED.getBrightness();
+	
+	// 设置颜色并点亮
+	FastLED.setBrightness(128); // 中等亮度
+	for (int i = 0; i < RGB_LED_NUM; i++) {
+		color_buffers[i] = CRGB(r, g, b);
+	}
+	FastLED.show();
+	
+	// 延时
+	delay(duration_ms);
+	
+	// 关闭并恢复原亮度
+	for (int i = 0; i < RGB_LED_NUM; i++) {
+		color_buffers[i] = CRGB(0, 0, 0);
+	}
+	FastLED.setBrightness(prev_brightness);
+	FastLED.show();
+}
+
+void Pixel::flashBlue(int duration_ms)
+{
+	flash(0, 0, 255, duration_ms);
+}
+
+void Pixel::flashGreen(int duration_ms)
+{
+	flash(0, 255, 0, duration_ms);
+}

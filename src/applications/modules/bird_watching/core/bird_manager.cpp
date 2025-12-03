@@ -1,8 +1,12 @@
 #include "bird_manager.h"
 #include "system/logging/log_manager.h"
 #include "drivers/sensors/imu/imu.h"
+#include "drivers/io/rgb_led/rgb_led.h"
 #include <cstdlib>
 #include <ctime>
+
+// 声明外部全局对象
+extern Pixel rgb;
 
 // 声明外部C接口，用于访问GUI对象
 extern "C" {
@@ -175,11 +179,13 @@ void BirdManager::onGestureEvent(int gesture_type) {
         case GESTURE_FORWARD_HOLD: // 前倾保持3秒 - 进入数据界面
             LOG_INFO("BIRD", "Forward hold 3s detected, showing stats view");
             showStatsView();
+            rgb.flashGreen(100); // 绿光闪一下
             break;
 
         case GESTURE_BACKWARD_HOLD: // 后倾保持3秒 - 退出数据界面
             LOG_INFO("BIRD", "Backward hold 3s detected, hiding stats view");
             hideStatsView();
+            rgb.flashGreen(100); // 绿光闪一下
             break;
 
         case GESTURE_LEFT_TILT: // 左倾
@@ -193,6 +199,7 @@ void BirdManager::onGestureEvent(int gesture_type) {
                     LOG_DEBUG("BIRD", "Right tilt in stats view, next page");
                     statsViewNextPage();
                 }
+                rgb.flashBlue(100); // 蓝光闪一下
             } else {
                 // 主界面中：触发新鸟（10秒CD）
                 unsigned long time_since_last_trigger = current_time - last_tilt_trigger_time;
@@ -201,6 +208,7 @@ void BirdManager::onGestureEvent(int gesture_type) {
                               String(" tilt in main view, triggering bird")).c_str());
                     triggerBird(TRIGGER_GESTURE);
                     last_tilt_trigger_time = current_time;
+                    rgb.flashBlue(100); // 蓝光闪一下
                 } else {
                     unsigned long remaining = 10000 - time_since_last_trigger;
                     LOG_DEBUG("BIRD", (String("Tilt ignored, CD active: ") + String(remaining) + 
