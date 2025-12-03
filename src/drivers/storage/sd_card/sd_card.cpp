@@ -6,15 +6,41 @@ void SdCard::init()
 {
 	LOG_INFO("SD", "Initializing SD card with HSPI...");
 
+	// 延迟以让SD卡稳定（尤其是在烧录后）
+	delay(100);
+
 	// Create HSPI instance with custom MISO pin 26 to avoid GPIO12 boot issue
 	SPIClass* sd_spi = new SPIClass(HSPI); // another SPI
 	sd_spi->begin(14, 26, 13, 15); // SCK=14, MISO=26, MOSI=13, SS=15
 
-	if (!SD.begin(15, *sd_spi)) // SD-Card SS pin is 15
+	// 重试机制：最多尝试3次
+	bool mounted = false;
+	for (int attempt = 1; attempt <= 3; attempt++)
 	{
-		LOG_ERROR("SD", "Card Mount Failed");
+		LOG_INFO("SD", "Mount attempt " + String(attempt) + "/3...");
+		
+		if (SD.begin(15, *sd_spi, 4000000)) // SD-Card SS pin is 15, 降低SPI频率到4MHz
+		{
+			mounted = true;
+			LOG_INFO("SD", "Card mounted successfully on attempt " + String(attempt));
+			break;
+		}
+		
+		// 失败后的处理
+		if (attempt < 3)
+		{
+			LOG_WARN("SD", "Mount failed, retrying...");
+			SD.end(); // 结束之前的尝试
+			delay(200); // 等待SD卡稳定
+		}
+	}
+
+	if (!mounted)
+	{
+		LOG_ERROR("SD", "Card Mount Failed after 3 attempts");
 		return;
 	}
+
 	uint8_t cardType = SD.cardType();
 
 	if (cardType == CARD_NONE)

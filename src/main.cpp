@@ -79,6 +79,8 @@ void setup()
 
     /*** Init micro SD-Card ***/
     LOG_INFO("MAIN", "Initializing SD card...");
+    // 在烧录后添加额外延迟，让硬件稳定
+    delay(200);
     tf.init();
     LOG_INFO("MAIN", "SD card initialized");
 

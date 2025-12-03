@@ -117,19 +117,20 @@ void LogManager::setLogLevel(LogLevel level) {
 void LogManager::setLogOutput(LogOutput output) {
     logOutputMode = output;
 
-    // 如果需要SD卡输出，重新尝试初始化SD卡
+    // 如果需要SD卡输出，检查SD卡是否可用（不重新初始化，因为SD卡已经在sd_card.cpp中初始化了）
     if ((output == OUTPUT_SD_CARD || output == OUTPUT_BOTH) && !sdCardAvailable) {
-        Serial.println("[LOG] Attempting to re-initialize SD card...");
-        if (SD.begin()) {
+        Serial.println("[LOG] Checking SD card availability...");
+        // 尝试通过检查SD卡类型来验证SD卡是否可用
+        if (SD.cardType() != CARD_NONE) {
             sdCardAvailable = true;
             if (createLogDirectory()) {
-                Serial.println("[LOG] SD card re-initialization successful");
+                Serial.println("[LOG] SD card is available for logging");
             } else {
                 sdCardAvailable = false;
-                Serial.println("[LOG] SD card re-initialization failed - cannot create log directory");
+                Serial.println("[LOG] SD card found but cannot create log directory");
             }
         } else {
-            Serial.println("[LOG] SD card re-initialization failed");
+            Serial.println("[LOG] SD card not available - logging to serial only");
         }
     }
 }
