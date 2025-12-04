@@ -10,6 +10,7 @@ from .config.settings import CybirdWatchingConfig, ConfigManager
 from .core.connection import SerialConnectionManager
 from .core.response_handler import CommandResponseHandler
 from .core.command_executor import CommandExecutor
+from .core.file_transfer import FileTransfer, FileTransferError
 from .ui.console import ConsoleInterface
 from .utils.exceptions import CybirdCLIError, ConnectionError
 
@@ -27,6 +28,7 @@ class CybirdWatchingCLI:
             self.response_handler,
             self.config
         )
+        self.file_transfer = FileTransfer(self.connection)
         self.console = ConsoleInterface(self.config)
         self.running = False
 
@@ -86,14 +88,17 @@ class CybirdWatchingCLI:
                 if not user_input:
                     continue
 
-                user_input = user_input.strip().lower()
+                # 保留原始输入（用于文件路径等）
+                original_input = user_input.strip()
+                # 只将命令部分转小写（用于命令匹配）
+                user_input_lower = original_input.lower()
 
-                # 处理本地命令
-                if await self._handle_local_command(user_input):
+                # 处理本地命令（使用小写版本）
+                if await self._handle_local_command(user_input_lower, original_input):
                     continue
 
-                # 处理设备命令
-                await self._execute_and_display(user_input)
+                # 处理设备命令（使用小写版本，因为设备端不区分大小写）
+                await self._execute_and_display(user_input_lower)
 
             except KeyboardInterrupt:
                 self.console.show_info("\n收到中断信号，正在退出...")
@@ -103,8 +108,17 @@ class CybirdWatchingCLI:
             except Exception as e:
                 self.console.show_error(f"输入错误: {str(e)}")
 
-    async def _handle_local_command(self, command: str) -> bool:
-        """处理本地命令，返回True表示已处理"""
+    async def _handle_local_command(self, command: str, original_input: str = None) -> bool:
+        """
+        处理本地命令，返回True表示已处理
+        
+        Args:
+            command: 小写的命令字符串（用于匹配）
+            original_input: 原始输入（保留大小写，用于文件路径）
+        """
+        if original_input is None:
+            original_input = command
+            
         if command in ['quit', 'exit']:
             self.running = False
             return True
@@ -126,6 +140,27 @@ class CybirdWatchingCLI:
         elif command == 'reset':
             await self._execute_reset_command()
             return True
+        elif command.startswith('upload '):
+            # 使用原始输入来保留文件路径大小写
+            await self._handle_upload_command(original_input)
+            return True
+        elif command.startswith('download '):
+            # 使用原始输入来保留文件路径大小写
+            await self._handle_download_command(original_input)
+            return True
+        elif command.startswith('file upload ') or command.startswith('file download '):
+            # file upload/download 带本地路径参数 - 作为本地命令处理
+            # 检查是否有足够的参数（至少3个部分）
+            parts = original_input.split(maxsplit=3)
+            if len(parts) >= 3:
+                # 有本地路径参数，作为本地命令处理
+                if command.startswith('file upload '):
+                    await self._handle_upload_command(original_input)
+                else:
+                    await self._handle_download_command(original_input)
+                return True
+            # 参数不足，让它作为设备命令处理（查看帮助信息）
+            return False
 
         return False
 
@@ -178,6 +213,96 @@ class CybirdWatchingCLI:
                 self.console.show_info("✓ 统计数据已重置并保存到文件")
         except Exception as e:
             self.console.show_error(f"重置命令执行失败: {str(e)}")
+
+    async def _handle_upload_command(self, command: str) -> None:
+        """
+        处理文件上传命令
+        支持两种格式：
+        1. upload <本地路径> <远程路径>  (快捷方式)
+        2. file upload <本地路径> <远程路径>  (标准格式)
+        """
+        # 移除命令前缀（不区分大小写）
+        command_lower = command.lower()
+        if command_lower.startswith('file upload '):
+            params = command[12:].strip()  # 移除 "file upload "，保留原始大小写
+        elif command_lower.startswith('upload '):
+            params = command[7:].strip()  # 移除 "upload "，保留原始大小写
+        else:
+            self.console.show_error("用法: upload <本地文件路径> <远程路径>")
+            return
+
+        # 智能分割：处理可能包含空格的路径
+        # 假设远程路径总是以 / 开头
+        parts = params.split()
+        
+        if len(parts) < 2:
+            self.console.show_error("用法: upload <本地文件路径> <远程路径>")
+            self.console.show_info("示例: upload ./config.json /configs/bird_config.json")
+            self.console.show_info("示例: upload ../../resources/configs/bird_config.json /configs/bird_config.json")
+            return
+
+        # 找到第一个以 / 开头的部分作为远程路径
+        remote_idx = -1
+        for i, part in enumerate(parts):
+            if part.startswith('/'):
+                remote_idx = i
+                break
+        
+        if remote_idx == -1:
+            self.console.show_error("远程路径必须以 / 开头")
+            self.console.show_info("示例: /configs/bird_config.json")
+            return
+
+        # 本地路径是远程路径之前的所有部分
+        local_path = ' '.join(parts[:remote_idx])
+        # 远程路径是从 / 开始的部分
+        remote_path = parts[remote_idx]
+
+        try:
+            await self.file_transfer.upload_file(local_path, remote_path)
+            self.console.show_info("✓ 文件上传成功")
+        except FileTransferError as e:
+            self.console.show_error(f"文件上传失败: {str(e)}")
+
+    async def _handle_download_command(self, command: str) -> None:
+        """
+        处理文件下载命令
+        支持两种格式：
+        1. download <远程路径> <本地路径>  (快捷方式)
+        2. file download <远程路径> <本地路径>  (标准格式)
+        """
+        # 移除命令前缀（不区分大小写）
+        command_lower = command.lower()
+        if command_lower.startswith('file download '):
+            params = command[14:].strip()  # 移除 "file download "，保留原始大小写
+        elif command_lower.startswith('download '):
+            params = command[9:].strip()  # 移除 "download "，保留原始大小写
+        else:
+            self.console.show_error("用法: download <远程路径> <本地文件路径>")
+            return
+
+        # 智能分割：第一个参数应该以 / 开头（远程路径）
+        parts = params.split()
+        
+        if len(parts) < 2:
+            self.console.show_error("用法: download <远程路径> <本地文件路径>")
+            self.console.show_info("示例: download /configs/bird_config.json ./downloaded_config.json")
+            return
+
+        if not parts[0].startswith('/'):
+            self.console.show_error("远程路径必须以 / 开头")
+            self.console.show_info("示例: /configs/bird_config.json")
+            return
+
+        remote_path = parts[0]
+        # 本地路径是剩余的所有部分（可能包含空格）
+        local_path = ' '.join(parts[1:])
+
+        try:
+            await self.file_transfer.download_file(remote_path, local_path)
+            self.console.show_info("✓ 文件下载成功")
+        except FileTransferError as e:
+            self.console.show_error(f"文件下载失败: {str(e)}")
 
     async def send_single_command(self, command: str) -> None:
         """发送单个命令（非交互模式）"""
@@ -247,7 +372,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--version', '-v',
         action='version',
-        version='CybirdWatching CLI v1.1.0'
+        version='CybirdWatching CLI v1.2.0'
     )
 
     subparsers = parser.add_subparsers(dest='command', help='子命令')

@@ -200,7 +200,11 @@ class ConsoleInterface:
   help             - 显示设备帮助
 
 📁 文件管理:
-  tree [path] [levels] - 显示SD卡目录树
+  tree [path] [levels]    - 显示SD卡目录树
+  file download <远程> <本地> - 下载SD卡文件 (设备命令)
+  file upload <远程>      - 上传文件到SD卡 (设备命令)
+  file delete <远程>      - 删除SD卡文件
+  file info <远程>        - 显示文件信息
 
 🐦 观鸟功能:
   bird trigger     - 手动触发小鸟动画
@@ -214,23 +218,26 @@ class ConsoleInterface:
   help             - 显示此CLI帮助
   test             - 测试基本通信（无响应标记）
   reset            - 重置观鸟统计数据并落盘
+  upload <本地> <远程>   - 上传文件到SD卡 (快捷方式)
+  download <远程> <本地> - 下载SD卡文件 (快捷方式)
   quit, exit       - 退出程序
   reconnect        - 重新连接设备
   cls              - 清除此终端屏幕
   info             - 显示设备连接信息
 
-示例:
+文件传输示例:
+  upload bird_config.json /configs/bird_config.json
+  download /configs/bird_config.json ./downloaded_config.json
+  file info /birds/1001/1.bin
+  file delete /temp/old_file.txt
+
+常用示例:
   [ON] CybirdWatching> log          # 显示设备日志
-  [ON] CybirdWatching> log cat      # 显示完整日志
   [ON] CybirdWatching> status       # 显示设备状态
-  [ON] CybirdWatching> log lines 20 # 显示最后20行日志
   [ON] CybirdWatching> tree         # 显示SD卡目录树
-  [ON] CybirdWatching> tree /config 2 # 显示config目录，2层深度
   [ON] CybirdWatching> bird list    # 查看可用小鸟列表
-  [ON] CybirdWatching> bird trigger # 手动触发小鸟
-  [ON] CybirdWatching> bird stats   # 查看观鸟统计
-  [ON] CybirdWatching> bird status  # 查看观鸟系统状态
-  [ON] CybirdWatching> test         # 测试通信
+  [ON] CybirdWatching> upload config.json /configs/bird_config.json
+  [ON] CybirdWatching> download /logs/cybird_watching.log ./device.log
         """
 
         if self.console:

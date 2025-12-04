@@ -6,7 +6,7 @@
 
 class SerialCommands {
 private:
-    static const int MAX_COMMANDS = 15;
+    static const int MAX_COMMANDS = 20;
 
     struct Command {
         String name;
@@ -55,4 +55,13 @@ private:
     void handleTreeCommand(const String& param);
     void handleBirdCommand(const String& param);
     void handleTaskCommand(const String& param);
+    void handleFileCommand(const String& param);
+    
+    // 文件传输辅助函数
+    void handleFileUpload(const String& param);
+    void handleFileDownload(const String& param);
+    void handleFileDelete(const String& param);
+    void handleFileInfo(const String& param);
+    String base64Encode(const uint8_t* data, size_t length);
+    size_t base64Decode(const String& input, uint8_t* output, size_t maxLength);
 };

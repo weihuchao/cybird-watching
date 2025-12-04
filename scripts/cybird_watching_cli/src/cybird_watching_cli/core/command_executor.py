@@ -167,7 +167,7 @@ class CommandExecutor:
 
         # 设备命令列表
         device_commands = [
-            'help', 'log', 'status', 'clear', 'tree', 'bird'
+            'help', 'log', 'status', 'clear', 'tree', 'bird', 'file', 'task'
         ]
 
         formatted_command = self.format_command(command)
@@ -244,6 +244,12 @@ class CommandExecutor:
             'bird stats - 显示观鸟统计信息',
             'bird reset - 重置观鸟统计数据',
             'bird list - 显示可用小鸟列表',
+            'file upload <path> - 上传文件到SD卡',
+            'file download <path> - 从SD卡下载文件',
+            'file delete <path> - 删除SD卡文件',
+            'file info <path> - 显示文件信息',
+            'task stats - 显示任务统计',
+            'task info - 显示详细任务信息',
             'test - 测试基本通信（无响应标记）'
         ]
 

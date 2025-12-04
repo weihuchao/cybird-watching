@@ -54,6 +54,19 @@ void setup()
     SerialCommands* serialCommands = SerialCommands::getInstance();
     serialCommands->initialize();
 
+    /*** Init micro SD-Card EARLY (before screen to avoid SPI conflicts) ***/
+    LOG_INFO("MAIN", "Initializing SD card...");
+    // 在烧录后添加额外延迟，让硬件稳定
+    delay(500);  // 增加延迟确保供电稳定
+    tf.init();
+    LOG_INFO("MAIN", "SD card initialized");
+
+    // 通知LogManager SD卡已初始化
+    LOG_INFO("MAIN", "Re-initializing log manager with SD card support...");
+    // Use SD card only to keep CLI responses clean
+    // Use 'log cat' command to view full log when needed
+    logManager->setLogOutput(LogManager::OUTPUT_SD_CARD);
+
     /*** Init screen ***/
     LOG_INFO("MAIN", "Initializing screen...");
     screen.init();
@@ -62,6 +75,11 @@ void setup()
     LOG_INFO("MAIN", "Setting backlight...");
     screen.setBackLight(0.2);
     LOG_INFO("MAIN", "Backlight set");
+
+    /*** Init LVGL file system ***/
+    LOG_INFO("MAIN", "Initializing LVGL file system...");
+    lv_fs_if_init();
+    LOG_INFO("MAIN", "LVGL file system initialized");
 
     /*** Init IMU as input device ***/
     LOG_INFO("MAIN", "Initializing LVGL input device...");
@@ -76,23 +94,6 @@ void setup()
     LOG_INFO("MAIN", "Initializing RGB LED...");
     rgb.init();
     LOG_INFO("MAIN", "RGB LED initialized (default: OFF)");
-
-    /*** Init micro SD-Card ***/
-    LOG_INFO("MAIN", "Initializing SD card...");
-    // 在烧录后添加额外延迟，让硬件稳定
-    delay(200);
-    tf.init();
-    LOG_INFO("MAIN", "SD card initialized");
-
-    // 通知LogManager SD卡已初始化
-    LOG_INFO("MAIN", "Re-initializing log manager with SD card support...");
-    // Use SD card only to keep CLI responses clean
-    // Use 'log cat' command to view full log when needed
-    logManager->setLogOutput(LogManager::OUTPUT_SD_CARD);
-
-    LOG_INFO("MAIN", "Initializing LVGL file system...");
-    lv_fs_if_init();
-    LOG_INFO("MAIN", "LVGL file system initialized");
 
     // LOG_INFO("MAIN", "Reading WiFi configuration...");
     // String ssid = tf.readFileLine("/wifi.txt", 1);        // line-1 for WiFi ssid

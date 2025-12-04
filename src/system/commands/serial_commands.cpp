@@ -41,6 +41,7 @@ void SerialCommands::initialize() {
     registerCommand("tree", "Show SD card directory tree structure [path] [levels]");
     registerCommand("bird", "Bird watching commands (trigger, stats, help)");
     registerCommand("task", "Task monitoring commands (stats, info)");
+    registerCommand("file", "File transfer commands (upload, download, delete, info)");
 
     LOG_INFO("CMD", "Serial command system initialized");
     Serial.println("Serial command system ready. Type 'help' for available commands.");
@@ -105,6 +106,10 @@ void SerialCommands::handleInput() {
         }
         else if (command.equals("task")) {
             handleTaskCommand(param);
+            commandFound = true;
+        }
+        else if (command.equals("file")) {
+            handleFileCommand(param);
             commandFound = true;
         }
 
@@ -477,4 +482,323 @@ void SerialCommands::handleTaskCommand(const String& param) {
 
 SerialCommands::~SerialCommands() {
     LOG_DEBUG("CMD", "Serial command system destroyed");
+}
+
+// ============================================
+// 文件传输命令实现
+// ============================================
+
+void SerialCommands::handleFileCommand(const String& param) {
+    Serial.println("<<<RESPONSE_START>>>");
+
+    if (param.isEmpty() || param.equals("help")) {
+        Serial.println("File transfer subcommands:");
+        Serial.println("  upload <path>   - Upload file to SD card (receives base64 data)");
+        Serial.println("  download <path> - Download file from SD card (sends base64 data)");
+        Serial.println("  delete <path>   - Delete file from SD card");
+        Serial.println("  info <path>     - Show file information");
+        Serial.println("  help            - Show this help");
+        Serial.println("\nUpload protocol:");
+        Serial.println("  1. Send: file upload /path/to/file.bin");
+        Serial.println("  2. Wait for READY prompt");
+        Serial.println("  3. Send: FILE_SIZE:<bytes>");
+        Serial.println("  4. Send base64 encoded data in chunks (max 512 bytes/line)");
+        Serial.println("  5. Send: FILE_END");
+        Serial.println("\nExamples:");
+        Serial.println("  file download /configs/bird_config.json");
+        Serial.println("  file info /birds/1001/1.bin");
+        Serial.println("  file delete /temp/old_file.txt");
+    }
+    else if (param.startsWith("upload ")) {
+        String path = param.substring(7);
+        path.trim();
+        handleFileUpload(path);
+    }
+    else if (param.startsWith("download ")) {
+        String path = param.substring(9);
+        path.trim();
+        handleFileDownload(path);
+    }
+    else if (param.startsWith("delete ")) {
+        String path = param.substring(7);
+        path.trim();
+        handleFileDelete(path);
+    }
+    else if (param.startsWith("info ")) {
+        String path = param.substring(5);
+        path.trim();
+        handleFileInfo(path);
+    }
+    else {
+        Serial.println("Unknown file subcommand");
+        Serial.println("Use 'file help' for available subcommands");
+    }
+
+    Serial.println("<<<RESPONSE_END>>>");
+
+    if (logManager) {
+        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "File command executed: " + param);
+    }
+}
+
+void SerialCommands::handleFileUpload(const String& path) {
+    if (!logManager || !logManager->isSDCardAvailable()) {
+        Serial.println("ERROR: SD card not available");
+        return;
+    }
+
+    // 确保目录存在
+    String dirPath = path;
+    int lastSlash = dirPath.lastIndexOf('/');
+    if (lastSlash > 0) {
+        dirPath = dirPath.substring(0, lastSlash);
+        if (!SD.exists(dirPath)) {
+            // 创建目录结构
+            String currentPath = "";
+            int start = 1; // 跳过开头的 '/'
+            while (start < dirPath.length()) {
+                int nextSlash = dirPath.indexOf('/', start);
+                if (nextSlash == -1) nextSlash = dirPath.length();
+                
+                currentPath += "/" + dirPath.substring(start, nextSlash);
+                if (!SD.exists(currentPath)) {
+                    if (!SD.mkdir(currentPath)) {
+                        Serial.println("ERROR: Failed to create directory: " + currentPath);
+                        return;
+                    }
+                }
+                start = nextSlash + 1;
+            }
+        }
+    }
+
+    Serial.println("READY");
+    Serial.println("Waiting for file data...");
+    Serial.println("Send FILE_SIZE:<bytes> first, then base64 data, end with FILE_END");
+
+    // 等待文件大小
+    unsigned long timeout = millis() + 30000; // 30秒超时
+    size_t expectedSize = 0;
+    bool sizeReceived = false;
+
+    while (millis() < timeout && !sizeReceived) {
+        if (Serial.available()) {
+            String line = Serial.readStringUntil('\n');
+            line.trim();
+            
+            if (line.startsWith("FILE_SIZE:")) {
+                expectedSize = line.substring(10).toInt();
+                sizeReceived = true;
+                Serial.printf("Expecting %u bytes\n", expectedSize);
+            }
+        }
+        delay(10);
+    }
+
+    if (!sizeReceived) {
+        Serial.println("ERROR: Timeout waiting for FILE_SIZE");
+        return;
+    }
+
+    // 打开文件准备写入
+    File file = SD.open(path, FILE_WRITE);
+    if (!file) {
+        Serial.println("ERROR: Failed to create file: " + path);
+        return;
+    }
+
+    // 接收并解码数据
+    String base64Buffer = "";
+    size_t totalWritten = 0;
+    bool transferComplete = false;
+    timeout = millis() + 120000; // 2分钟超时
+
+    while (millis() < timeout && !transferComplete) {
+        if (Serial.available()) {
+            String line = Serial.readStringUntil('\n');
+            line.trim();
+
+            if (line.equals("FILE_END")) {
+                transferComplete = true;
+                break;
+            }
+
+            // 累积base64数据
+            base64Buffer += line;
+
+            // 每1KB解码一次（base64编码后约1365字符）
+            if (base64Buffer.length() >= 1360) {
+                uint8_t decoded[1024];
+                size_t decodedLen = base64Decode(base64Buffer.substring(0, 1364), decoded, sizeof(decoded));
+                
+                if (decodedLen > 0) {
+                    size_t written = file.write(decoded, decodedLen);
+                    totalWritten += written;
+                    Serial.printf("Progress: %u / %u bytes (%.1f%%)\n", 
+                        totalWritten, expectedSize, 
+                        (totalWritten * 100.0) / expectedSize);
+                }
+                
+                base64Buffer = base64Buffer.substring(1364);
+                timeout = millis() + 120000; // 重置超时
+            }
+        }
+        delay(1);
+    }
+
+    // 处理剩余数据
+    if (base64Buffer.length() > 0) {
+        uint8_t decoded[1024];
+        size_t decodedLen = base64Decode(base64Buffer, decoded, sizeof(decoded));
+        if (decodedLen > 0) {
+            totalWritten += file.write(decoded, decodedLen);
+        }
+    }
+
+    file.close();
+
+    if (transferComplete) {
+        Serial.printf("SUCCESS: File uploaded successfully!\n");
+        Serial.printf("Path: %s\n", path.c_str());
+        Serial.printf("Size: %u bytes\n", totalWritten);
+    } else {
+        Serial.println("ERROR: Transfer timeout or incomplete");
+        SD.remove(path); // 删除不完整的文件
+    }
+}
+
+void SerialCommands::handleFileDownload(const String& path) {
+    if (!logManager || !logManager->isSDCardAvailable()) {
+        Serial.println("ERROR: SD card not available");
+        return;
+    }
+
+    if (!SD.exists(path)) {
+        Serial.println("ERROR: File not found: " + path);
+        return;
+    }
+
+    File file = SD.open(path, FILE_READ);
+    if (!file) {
+        Serial.println("ERROR: Failed to open file: " + path);
+        return;
+    }
+
+    size_t fileSize = file.size();
+    Serial.printf("FILE_START:%s:%u\n", path.c_str(), fileSize);
+
+    // 分块读取并base64编码发送
+    const size_t CHUNK_SIZE = 768; // 768字节编码后刚好1024字符
+    uint8_t buffer[CHUNK_SIZE];
+    size_t totalSent = 0;
+
+    while (file.available()) {
+        size_t bytesRead = file.read(buffer, CHUNK_SIZE);
+        if (bytesRead > 0) {
+            String encoded = base64Encode(buffer, bytesRead);
+            Serial.println(encoded);
+            totalSent += bytesRead;
+            
+            // 显示进度
+            if (totalSent % (CHUNK_SIZE * 10) == 0 || totalSent == fileSize) {
+                Serial.printf("PROGRESS:%u/%u\n", totalSent, fileSize);
+            }
+        }
+        yield(); // 喂狗
+    }
+
+    file.close();
+    Serial.println("FILE_END");
+    Serial.printf("SUCCESS: %u bytes sent\n", totalSent);
+}
+
+void SerialCommands::handleFileDelete(const String& path) {
+    if (!logManager || !logManager->isSDCardAvailable()) {
+        Serial.println("ERROR: SD card not available");
+        return;
+    }
+
+    if (!SD.exists(path)) {
+        Serial.println("ERROR: File not found: " + path);
+        return;
+    }
+
+    if (SD.remove(path)) {
+        Serial.println("SUCCESS: File deleted: " + path);
+    } else {
+        Serial.println("ERROR: Failed to delete file: " + path);
+    }
+}
+
+void SerialCommands::handleFileInfo(const String& path) {
+    if (!logManager || !logManager->isSDCardAvailable()) {
+        Serial.println("ERROR: SD card not available");
+        return;
+    }
+
+    if (!SD.exists(path)) {
+        Serial.println("ERROR: File not found: " + path);
+        return;
+    }
+
+    File file = SD.open(path, FILE_READ);
+    if (!file) {
+        Serial.println("ERROR: Failed to open file: " + path);
+        return;
+    }
+
+    Serial.println("=== File Information ===");
+    Serial.printf("Path: %s\n", path.c_str());
+    Serial.printf("Size: %u bytes (%.2f KB)\n", file.size(), file.size() / 1024.0);
+    Serial.printf("Type: %s\n", file.isDirectory() ? "Directory" : "File");
+    
+    file.close();
+    Serial.println("========================");
+}
+
+// Base64编码实现
+String SerialCommands::base64Encode(const uint8_t* data, size_t length) {
+    const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    String result;
+    result.reserve((length + 2) / 3 * 4);
+
+    for (size_t i = 0; i < length; i += 3) {
+        uint32_t b = (data[i] << 16) | 
+                     ((i + 1 < length ? data[i + 1] : 0) << 8) |
+                     (i + 2 < length ? data[i + 2] : 0);
+
+        result += base64_chars[(b >> 18) & 0x3F];
+        result += base64_chars[(b >> 12) & 0x3F];
+        result += (i + 1 < length) ? base64_chars[(b >> 6) & 0x3F] : '=';
+        result += (i + 2 < length) ? base64_chars[b & 0x3F] : '=';
+    }
+
+    return result;
+}
+
+// Base64解码实现
+size_t SerialCommands::base64Decode(const String& input, uint8_t* output, size_t maxLength) {
+    const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    
+    size_t outLen = 0;
+    uint32_t buffer = 0;
+    int bits = 0;
+
+    for (size_t i = 0; i < input.length() && outLen < maxLength; i++) {
+        char c = input[i];
+        if (c == '=') break;
+
+        const char* p = strchr(base64_chars, c);
+        if (!p) continue;
+
+        buffer = (buffer << 6) | (p - base64_chars);
+        bits += 6;
+
+        if (bits >= 8) {
+            bits -= 8;
+            output[outLen++] = (buffer >> bits) & 0xFF;
+        }
+    }
+
+    return outLen;
 }
