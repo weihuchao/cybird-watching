@@ -7,65 +7,92 @@ void SdCard::init()
 	LOG_INFO("SD", "Initializing SD card with HSPI...");
 
 	// 延迟以让SD卡稳定（尤其是在烧录后）
-	// 增加延迟时间，确保SD卡供电完全稳定
 	delay(500);
 
 	// Create HSPI instance with custom MISO pin 26 to avoid GPIO12 boot issue
 	SPIClass* sd_spi = new SPIClass(HSPI); // another SPI
 	
-	// 初始化SPI总线前先设置CS为高电平，防止SD卡误触发
+	// 【关键】完全复位SD卡和SPI总线
 	pinMode(15, OUTPUT);
-	digitalWrite(15, HIGH);
-	delay(50);
+	digitalWrite(15, LOW);  // 先拉低CS强制复位SD卡
+	delay(100);
+	digitalWrite(15, HIGH); // 拉高CS释放SD卡
+	delay(200);             // 等待SD卡完全复位
 	
+	// 初始化SPI总线
 	sd_spi->begin(14, 26, 13, 15); // SCK=14, MISO=26, MOSI=13, SS=15
+	delay(100);
 	
-	// 额外的稳定延迟，让SPI总线完全初始化
+	// 【新增】发送至少74个时钟脉冲让SD卡进入SPI模式（SD规范要求）
+	sd_spi->beginTransaction(SPISettings(400000, MSBFIRST, SPI_MODE0)); // 低速400kHz
+	for (int i = 0; i < 10; i++) {
+		sd_spi->transfer(0xFF); // 发送10字节（80个时钟）
+	}
+	sd_spi->endTransaction();
 	delay(100);
 
-	// 重试机制：最多尝试3次
+	// 扩展重试机制：测试多个频率找到最佳速度
 	bool mounted = false;
-	for (int attempt = 1; attempt <= 3; attempt++)
+	const uint32_t freq_list[] = {
+		25000000,  // 25MHz - ESP32 SPI最大
+		20000000,  // 20MHz
+		16000000,  // 16MHz
+		12000000,  // 12MHz
+		10000000,  // 10MHz
+		8000000,   // 8MHz
+		5000000,   // 5MHz
+		4000000,   // 4MHz
+		2000000,   // 2MHz
+		1000000    // 1MHz - 最后保底
+	};
+	const int freq_count = sizeof(freq_list) / sizeof(freq_list[0]);
+	
+	for (int attempt = 0; attempt < freq_count; attempt++)
 	{
-		LOG_INFO("SD", "Mount attempt " + String(attempt) + "/3...");
-		
-		// 优化SPI频率策略：
-		// - 第1次: 1MHz (安全模式，确保兼容性)
-		// - 第2次: 20MHz (高速模式，适合Class 10卡)
-		// - 第3次: 10MHz (中速模式，折中方案)
-		uint32_t spi_freq;
-		if (attempt == 1) {
-			spi_freq = 1000000;  // 1MHz
-		} else if (attempt == 2) {
-			spi_freq = 20000000; // 20MHz
-		} else {
-			spi_freq = 10000000; // 10MHz
-		}
+		uint32_t spi_freq = freq_list[attempt];
+		Serial.printf("[SD] Testing %dMHz...\n", spi_freq / 1000000);
+		LOG_INFO("SD", "Testing " + String(spi_freq/1000000) + "MHz...");
 		
 		if (SD.begin(15, *sd_spi, spi_freq)) // SD-Card SS pin is 15
 		{
 			mounted = true;
-			LOG_INFO("SD", "Card mounted successfully on attempt " + String(attempt) + " at " + String(spi_freq/1000000) + "MHz");
+			LOG_INFO("SD", "✓✓✓ SUCCESS! Card mounted at " + String(spi_freq/1000000) + "MHz");
+			Serial.printf("[SD] ✓✓✓ SUCCESS! Card mounted at %dMHz\n", spi_freq/1000000);
 			break;
 		}
 		
-		// 失败后的处理
-		if (attempt < 3)
+		// 失败后的完整复位流程
+		if (attempt < freq_count - 1)
 		{
-			LOG_WARN("SD", "Mount failed, retrying...");
+			Serial.println("[SD] Failed, trying lower speed...");
 			SD.end(); // 结束之前的尝试
 			
-			// 复位SD卡：拉低CS再拉高
-			digitalWrite(15, LOW);
-			delay(50);
-			digitalWrite(15, HIGH);
-			delay(300); // 增加延迟，等待SD卡完全复位
+			// 【完全复位】重新初始化SPI总线和SD卡
+			sd_spi->end();                 // 关闭SPI总线
+			delay(100);
+			
+			digitalWrite(15, LOW);         // CS拉低
+			delay(100);
+			digitalWrite(15, HIGH);        // CS拉高
+			delay(200);
+			
+			sd_spi->begin(14, 26, 13, 15); // 重新初始化SPI
+			delay(100);
+			
+			// 再次发送时钟脉冲
+			sd_spi->beginTransaction(SPISettings(400000, MSBFIRST, SPI_MODE0));
+			for (int i = 0; i < 10; i++) {
+				sd_spi->transfer(0xFF);
+			}
+			sd_spi->endTransaction();
+			delay(100);
 		}
 	}
 
 	if (!mounted)
 	{
-		LOG_ERROR("SD", "Card Mount Failed after 3 attempts");
+		LOG_ERROR("SD", "Card Mount Failed at all speeds!");
+		Serial.println("[SD] ✗✗✗ Card Mount Failed at all speeds!");
 		return;
 	}
 

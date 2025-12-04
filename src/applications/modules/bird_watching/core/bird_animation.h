@@ -50,6 +50,10 @@ private:
     lv_image_dsc_t* next_img_dsc_;  // 下一帧图像描述符
     uint8_t* next_img_data_;        // 下一帧图像数据
     bool next_frame_ready_;         // 下一帧是否已准备好
+    
+    // 预加载统计（用于自适应优化）
+    uint8_t preload_fail_count_;    // 连续预加载失败次数
+    bool preload_enabled_;          // 是否启用预加载
 
     // 释放前一帧的内存
     void releasePreviousFrame();

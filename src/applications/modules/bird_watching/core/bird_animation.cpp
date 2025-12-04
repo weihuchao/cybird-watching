@@ -20,6 +20,8 @@ BirdAnimation::BirdAnimation()
     , next_img_dsc_(nullptr)
     , next_img_data_(nullptr)
     , next_frame_ready_(false)
+    , preload_fail_count_(0)
+    , preload_enabled_(true)
     , running_in_ui_task_(false)
 {
 }
@@ -116,11 +118,18 @@ void BirdAnimation::startLoop() {
         LOG_ERROR("ANIM", "No bird loaded");
         return;
     }
+    
+    if (current_frame_count_ == 0) {
+        LOG_ERROR("ANIM", "No frames available for bird " + String(current_bird_.id));
+        return;
+    }
 
     // 重置到第一帧
     current_frame_ = 0;
     frame_processing_ = false;
-    last_frame_time_ = 0;
+    next_frame_ready_ = false;
+    preload_fail_count_ = 0;
+    preload_enabled_ = true;  // 25MHz SD卡：启用预加载优化
 
     // 加载并显示第一帧
     if (!loadAndShowFrame(0)) {
@@ -133,15 +142,15 @@ void BirdAnimation::startLoop() {
 
     is_playing_ = true;
 
-    // 创建播放定时器，50ms周期检查（20FPS轮询，实际帧率由last_frame_time_控制）
-    play_timer_ = lv_timer_create(timerCallback, 50, this);
+    // 创建播放定时器，20ms周期检查
+    play_timer_ = lv_timer_create(timerCallback, 20, this);
     if (!play_timer_) {
         LOG_ERROR("ANIM", "Failed to create animation timer");
         is_playing_ = false;
         return;
     }
 
-    LOG_INFO("ANIM", "Animation started at 8 FPS (125ms/frame)");
+    LOG_INFO("ANIM", "Animation started at 20 FPS (50ms/frame) with 25MHz SD card");
 }
 
 void BirdAnimation::stop() {
@@ -223,21 +232,35 @@ bool BirdAnimation::loadAndShowFrame(uint8_t frame_index) {
 }
 
 void BirdAnimation::playNextFrame() {
-    if (!is_playing_ || frame_processing_) {
+    if (!is_playing_ || frame_processing_ || !display_obj_) {
         return;
     }
 
-    // 检查是否到了播放下一帧的时间（8 FPS = 125ms/帧）
+    // 检查是否到了播放下一帧的时间
+    // 25MHz SD卡速度：~1.5MB/s，每帧加载~18ms
+    // 加上vTaskDelay(1)的10ms，总计约30ms，可以支持30+ FPS
     uint32_t now = millis();
-    const uint32_t FRAME_INTERVAL_MS = 125; // 8 FPS
+    const uint32_t FRAME_INTERVAL_MS = 50; // 20 FPS - 平衡流畅度和看门狗安全
     
     if (now - last_frame_time_ < FRAME_INTERVAL_MS) {
-        // 还没到时间，但可以利用这段时间预加载下一帧
-        if (!next_frame_ready_) {
+        // 利用空闲时间预加载下一帧（25MHz SD卡足够快）
+        if (preload_enabled_ && !next_frame_ready_) {
             uint8_t next_frame = (current_frame_ + 1) % current_frame_count_;
-            preloadFrameToBuffer(next_frame, &next_img_dsc_, &next_img_data_);
-            if (next_img_dsc_ && next_img_data_) {
-                next_frame_ready_ = true;
+            
+            // 检查剩余时间是否足够预加载（至少需要20ms）
+            uint32_t time_left = FRAME_INTERVAL_MS - (now - last_frame_time_);
+            if (time_left >= 20) {
+                bool success = preloadFrameToBuffer(next_frame, &next_img_dsc_, &next_img_data_);
+                if (success && next_img_dsc_ && next_img_data_) {
+                    next_frame_ready_ = true;
+                    preload_fail_count_ = 0;
+                } else {
+                    preload_fail_count_++;
+                    if (preload_fail_count_ >= 3) {
+                        preload_enabled_ = false;
+                        Serial.println("[WARN] Preload disabled (memory low)");
+                    }
+                }
             }
         }
         return;
@@ -252,8 +275,8 @@ void BirdAnimation::playNextFrame() {
         current_frame_ = 0;
     }
 
-    // 如果下一帧已预加载，直接使用
-    if (next_frame_ready_) {
+    // 如果下一帧已预加载，直接使用（双缓冲）
+    if (next_frame_ready_ && next_img_dsc_ && next_img_data_) {
         // 释放当前帧
         if (current_img_data_) free(current_img_data_);
         if (current_img_dsc_) free(current_img_dsc_);
@@ -265,29 +288,39 @@ void BirdAnimation::playNextFrame() {
         next_img_data_ = nullptr;
         next_frame_ready_ = false;
         
-        // 显示已加载的帧
+        // 显示预加载的帧
         lv_image_set_src(display_obj_, current_img_dsc_);
         
-        // 设置缩放和位置
-        lv_img_set_pivot(display_obj_, current_img_dsc_->header.w / 2, current_img_dsc_->header.h / 2);
-        lv_img_set_zoom(display_obj_, 512); // 2.0x
-        lv_obj_center(display_obj_);
-        lv_obj_clear_flag(display_obj_, LV_OBJ_FLAG_HIDDEN);
+        if (current_img_dsc_) {
+            lv_img_set_pivot(display_obj_, current_img_dsc_->header.w / 2, current_img_dsc_->header.h / 2);
+            lv_img_set_zoom(display_obj_, 512); // 2.0x
+            lv_obj_center(display_obj_);
+            lv_obj_clear_flag(display_obj_, LV_OBJ_FLAG_HIDDEN);
+        }
         
-        uint32_t display_time = millis() - frame_start;
-        LOG_DEBUG("ANIM", "Frame " + String(current_frame_) + " from buffer: " + String(display_time) + "ms");
+        // 让出CPU给看门狗任务，防止触发看门狗超时
+        vTaskDelay(1); // 延迟1个tick (~10ms)
     } else {
-        // 下一帧未预加载，实时加载
+        // 预加载失败或未启用，实时加载
+        if (next_img_data_) free(next_img_data_);
+        if (next_img_dsc_) free(next_img_dsc_);
+        next_img_data_ = nullptr;
+        next_img_dsc_ = nullptr;
+        next_frame_ready_ = false;
+        
         if (!loadAndShowFrame(current_frame_)) {
             stop();
             frame_processing_ = false;
             return;
         }
         
-        uint32_t load_time = millis() - frame_start;
-        if (load_time > FRAME_INTERVAL_MS) {
-            LOG_WARN("ANIM", "Frame load slow: " + String(load_time) + "ms (target: " + String(FRAME_INTERVAL_MS) + "ms)");
-        }
+        // 实时加载更耗时，也要让出CPU
+        vTaskDelay(1);
+    }
+    
+    uint32_t load_time = millis() - frame_start;
+    if (load_time > FRAME_INTERVAL_MS) {
+        Serial.printf("[WARN] Frame %d load: %dms (target: %dms)\n", current_frame_, load_time, FRAME_INTERVAL_MS);
     }
 
     last_frame_time_ = millis();
@@ -373,9 +406,19 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
         return false;
     }
 
-    // 读取像素数据 - 优化：一次性读取，避免频繁让出CPU
+    // 读取像素数据 - 性能分析
+    static uint8_t perf_log_count = 0;
+    uint32_t read_start = millis();
     size_t bytes_read = file.read(img_data, data_size);
+    uint32_t read_time = millis() - read_start;
     file.close();
+
+    // 前3帧输出性能日志到串口
+    if (perf_log_count < 3) {
+        Serial.printf("[PERF] SD read %uB in %ums (%u KB/s)\n", 
+                      data_size, read_time, data_size * 1000 / read_time / 1024);
+        perf_log_count++;
+    }
 
     if (bytes_read != data_size) {
         LOG_ERROR("BIRD", "Failed to read pixel data: " + String(bytes_read) + "/" + String(data_size));
@@ -518,6 +561,11 @@ void BirdAnimation::timerCallback(lv_timer_t* timer) {
 }
 
 bool BirdAnimation::preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** out_dsc, uint8_t** out_data) {
+    if (!out_dsc || !out_data) {
+        LOG_ERROR("ANIM", "Invalid output parameters for preload");
+        return false;
+    }
+    
     if (frame_index >= current_frame_count_) {
         return false;
     }
@@ -578,6 +626,9 @@ bool BirdAnimation::preloadFrameToBuffer(uint8_t frame_index, lv_image_dsc_t** o
     // 读取像素数据
     size_t bytes_read = file.read(img_data, data_size);
     file.close();
+    
+    // 预加载完成后让出CPU，避免看门狗超时
+    vTaskDelay(1);
 
     if (bytes_read != data_size) {
         free(img_dsc);
