@@ -13,7 +13,7 @@ uint8_t detectFrameCount(uint16_t bird_id) {
     
     // 首先尝试常见的帧数（从大到小，快速路径）
     // 80是当前所有动画的标准帧数，优先检查
-    const uint8_t common_counts[] = {80, 64, 48, 32, 24, 16, 8};
+    const uint8_t common_counts[] = {150, 128, 64, 48, 32, 24, 16, 8};
     for (uint8_t test_count : common_counts) {
         char path[128];
         snprintf(path, sizeof(path), "/birds/%d/%d.bin", bird_id, test_count);
@@ -37,10 +37,10 @@ uint8_t detectFrameCount(uint16_t bird_id) {
         // 没找到，继续尝试更小的常见值
     }
     
-    // 如果找到了一个常见值但还有更多帧，使用二分查找在 [lower_bound, 100] 范围内精确定位
-    if (max_frames > 0 && lower_bound <= 100) {
+    // 如果找到了一个常见值但还有更多帧，使用二分查找在 [lower_bound, 200] 范围内精确定位
+    if (max_frames > 0 && lower_bound <= 200) {
         uint8_t min_val = lower_bound;
-        uint8_t max_val = 100;
+        uint8_t max_val = 200;
         
         // 二分查找找到确切的最大帧数
         while (min_val <= max_val) {

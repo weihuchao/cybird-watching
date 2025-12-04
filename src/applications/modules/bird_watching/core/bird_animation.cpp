@@ -240,7 +240,7 @@ void BirdAnimation::playNextFrame() {
     // 25MHz SD卡速度：~1.5MB/s，每帧加载~18ms
     // 加上vTaskDelay(1)的10ms，总计约30ms，可以支持30+ FPS
     uint32_t now = millis();
-    const uint32_t FRAME_INTERVAL_MS = 50; // 20 FPS - 平衡流畅度和看门狗安全
+    const uint32_t FRAME_INTERVAL_MS = 66; // 15 FPS - 平衡流畅度和看门狗安全
     
     if (now - last_frame_time_ < FRAME_INTERVAL_MS) {
         // 利用空闲时间预加载下一帧（25MHz SD卡足够快）
