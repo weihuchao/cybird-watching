@@ -193,6 +193,19 @@ void lv_init_gui(void)
 		// 设置图片源
 		lv_image_set_src(logo_img, logo_img_dsc);
 		
+		// 计算缩放比例 - 缩放到240x240
+		// LVGL缩放：256 = 1.0x, 512 = 2.0x
+		// 假设原图尺寸为120x120，需要2倍缩放到240x240
+		uint16_t width = logo_img_dsc->header.w;
+		uint16_t height = logo_img_dsc->header.h;
+		uint16_t zoom_factor = (240 * 256) / width; // 计算缩放比例
+		
+		// 设置缩放中心点为图像中心
+		lv_img_set_pivot(logo_img, width / 2, height / 2);
+		
+		// 应用缩放
+		lv_img_set_zoom(logo_img, zoom_factor);
+		
 		// 确保对象可见
 		lv_obj_clear_flag(logo_img, LV_OBJ_FLAG_HIDDEN);
 		
