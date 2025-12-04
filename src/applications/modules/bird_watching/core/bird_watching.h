@@ -32,7 +32,8 @@ void updateBirdWatching();
 void processBirdTriggerRequest();
 
 // 便捷函数：手动触发小鸟
-bool triggerBird();
+// bird_id: 小鸟ID，0表示随机选择
+bool triggerBird(uint16_t bird_id = 0);
 
 // 便捷函数：处理手势事件
 void onGesture(int gesture_type);

@@ -5,7 +5,7 @@
 
 // 前向声明Bird Watching便捷函数
 namespace BirdWatching {
-    bool triggerBird();
+    bool triggerBird(uint16_t bird_id = 0);
     void showBirdStatistics();
     bool resetBirdStatistics();
     void listBirds();
@@ -361,25 +361,48 @@ void SerialCommands::handleBirdCommand(const String& param) {
 
     if (param.isEmpty() || param.equals("help")) {
         Serial.println("Bird watching subcommands:");
-        Serial.println("  trigger    - Manually trigger a bird appearance");
-        Serial.println("  list       - List all available birds");
-        Serial.println("  stats      - Show bird watching statistics");
-        Serial.println("  status     - Show bird watching system status");
-        Serial.println("  reset      - Reset bird watching statistics and save to file");
-        Serial.println("  help       - Show this help");
+        Serial.println("  trigger [id] - Manually trigger a bird appearance (random if no id)");
+        Serial.println("  list         - List all available birds");
+        Serial.println("  stats        - Show bird watching statistics");
+        Serial.println("  status       - Show bird watching system status");
+        Serial.println("  reset        - Reset bird watching statistics and save to file");
+        Serial.println("  help         - Show this help");
         Serial.println("Examples:");
-        Serial.println("  bird trigger  - Trigger a random bird");
-        Serial.println("  bird list     - List all birds");
-        Serial.println("  bird stats    - Show statistics");
-        Serial.println("  bird status   - Show system status");
-        Serial.println("  bird reset    - Reset all statistics");
+        Serial.println("  bird trigger      - Trigger a random bird");
+        Serial.println("  bird trigger 1001 - Trigger bird with ID 1001");
+        Serial.println("  bird list         - List all birds");
+        Serial.println("  bird stats        - Show statistics");
+        Serial.println("  bird status       - Show system status");
+        Serial.println("  bird reset        - Reset all statistics");
     }
-    else if (param.equals("trigger")) {
-        Serial.println("Triggering bird appearance...");
-        if (BirdWatching::triggerBird()) {
-            Serial.println("Bird triggered successfully!");
+    else if (param.equals("trigger") || param.startsWith("trigger ")) {
+        uint16_t bird_id = 0;
+        
+        // 检查是否有指定小鸟ID
+        if (param.startsWith("trigger ")) {
+            String id_str = param.substring(8); // 获取 "trigger " 后面的内容
+            id_str.trim();
+            bird_id = id_str.toInt();
+            
+            if (bird_id > 0) {
+                Serial.println("Triggering bird ID " + String(bird_id) + "...");
+            } else {
+                Serial.println("Invalid bird ID: " + id_str);
+                Serial.println("Use 'bird list' to see available bird IDs");
+                return;
+            }
         } else {
-            Serial.println("Failed to trigger bird. Check if system is initialized.");
+            Serial.println("Triggering random bird appearance...");
+        }
+        
+        if (BirdWatching::triggerBird(bird_id)) {
+            if (bird_id > 0) {
+                Serial.println("Bird ID " + String(bird_id) + " triggered successfully!");
+            } else {
+                Serial.println("Random bird triggered successfully!");
+            }
+        } else {
+            Serial.println("Failed to trigger bird. Check if system is initialized or bird ID exists.");
         }
     }
     else if (param.equals("list")) {

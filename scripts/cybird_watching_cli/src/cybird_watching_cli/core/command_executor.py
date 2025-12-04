@@ -240,7 +240,7 @@ class CommandExecutor:
             'status - 显示系统状态',
             'clear - 清除终端屏幕',
             'tree [path] [levels] - 显示SD卡目录树',
-            'bird trigger - 手动触发小鸟动画',
+            'bird trigger [id] - 手动触发小鸟动画（可选指定小鸟ID）',
             'bird stats - 显示观鸟统计信息',
             'bird reset - 重置观鸟统计数据',
             'bird list - 显示可用小鸟列表',

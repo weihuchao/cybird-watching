@@ -99,14 +99,16 @@ cybird_send.bat "log lines 50"
 cybird_send.bat "log clear"
 
 # 🐦 观鸟功能 (通用方式)
-cybird_send.bat "bird trigger"    # 手动触发小鸟动画
-cybird_send.bat "bird stats"      # 查看观鸟统计
-cybird_send.bat "bird list"       # 显示可用小鸟列表
-cybird_send.bat "bird reset"      # 重置统计数据
+cybird_send.bat "bird trigger"       # 手动触发随机小鸟动画
+cybird_send.bat "bird trigger 1001"  # 手动触发指定小鸟（ID: 1001）
+cybird_send.bat "bird stats"         # 查看观鸟统计
+cybird_send.bat "bird list"          # 显示可用小鸟列表
+cybird_send.bat "bird reset"         # 重置统计数据
 
 # 🐦 观鸟功能 (专用工具，更简洁)
-cybird_bird.bat trigger           # 手动触发小鸟动画
-cybird_bird.bat stats             # 查看观鸟统计
+cybird_bird.bat trigger              # 手动触发随机小鸟动画
+cybird_bird.bat trigger 1001         # 手动触发指定小鸟（ID: 1001）
+cybird_bird.bat stats                # 查看观鸟统计
 cybird_bird.bat list              # 显示可用小鸟列表
 cybird_bird.bat reset             # 重置统计数据
 cybird_bird.bat trigger COM4      # 在COM4端口触发小鸟

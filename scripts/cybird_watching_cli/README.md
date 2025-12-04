@@ -93,7 +93,7 @@ uv run python -m cybird_watching_cli.main send "help"
 | 命令 | 描述 |
 |------|------|
 | `bird list` | 显示可用小鸟列表 |
-| `bird trigger` | 手动触发小鸟动画 |
+| `bird trigger [id]` | 手动触发小鸟动画（可选指定小鸟ID） |
 | `bird stats` | 显示观鸟统计信息 |
 | `bird status` | 显示观鸟系统状态 |
 | `bird reset` | 重置观鸟统计数据 |

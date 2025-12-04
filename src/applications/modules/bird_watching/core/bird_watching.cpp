@@ -44,13 +44,19 @@ void processBirdTriggerRequest() {
     }
 }
 
-bool triggerBird() {
+bool triggerBird(uint16_t bird_id) {
     if (!g_birdManager) {
         LOG_ERROR("BIRD", "Bird watching system not initialized");
         return false;
     }
 
-    return g_birdManager->triggerBird(TRIGGER_MANUAL);
+    if (bird_id == 0) {
+        // 随机触发
+        return g_birdManager->triggerBird(TRIGGER_MANUAL);
+    } else {
+        // 触发指定小鸟
+        return g_birdManager->triggerBirdById(bird_id, TRIGGER_MANUAL);
+    }
 }
 
 void onGesture(int gesture_type) {

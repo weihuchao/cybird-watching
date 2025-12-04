@@ -100,7 +100,7 @@ platformio device monitor
 
 #### 小鸟系统
 ```bash
-bird trigger         # 触发小鸟动画
+bird trigger [id]    # 触发小鸟动画（可选指定小鸟ID，如 bird trigger 1001）
 bird list           # 列出所有小鸟
 bird stats          # 查看观鸟统计
 ```

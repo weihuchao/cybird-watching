@@ -145,6 +145,42 @@ bool BirdManager::triggerBird(TriggerType trigger_type) {
     return true;
 }
 
+bool BirdManager::triggerBirdById(uint16_t bird_id, TriggerType trigger_type) {
+    if (!initialized_) {
+        LOG_ERROR("BIRD_MGR", "Bird manager not initialized");
+        return false;
+    }
+
+    if (bird_id == 0) {
+        LOG_ERROR("BIRD_MGR", "Invalid bird_id: 0");
+        return false;
+    }
+
+    // 验证小鸟ID是否存在
+    const auto& birds = getAllBirds();
+    bool bird_exists = false;
+    for (const auto& bird : birds) {
+        if (bird.id == bird_id) {
+            bird_exists = true;
+            break;
+        }
+    }
+
+    if (!bird_exists) {
+        LOG_ERROR("BIRD_MGR", String("Bird ID not found: ") + String(bird_id));
+        return false;
+    }
+
+    // 设置触发请求,由UI任务处理
+    trigger_request_.pending = true;
+    trigger_request_.type = trigger_type;
+    trigger_request_.bird_id = bird_id; // 指定小鸟
+    trigger_request_.record_stats = true;
+
+    LOG_INFO("BIRD_MGR", String("Trigger request set for bird ID: ") + String(bird_id));
+    return true;
+}
+
 bool BirdManager::playBirdWithoutRecording(uint16_t bird_id) {
     if (!initialized_) {
         LOG_ERROR("BIRD_MGR", "Bird manager not initialized");

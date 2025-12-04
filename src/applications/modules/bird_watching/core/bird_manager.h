@@ -44,6 +44,9 @@ public:
     // 手动触发小鸟出现(设置触发请求)
     bool triggerBird(TriggerType trigger_type = TRIGGER_MANUAL);
     
+    // 触发指定小鸟ID
+    bool triggerBirdById(uint16_t bird_id, TriggerType trigger_type = TRIGGER_MANUAL);
+    
     // 播放指定小鸟（不记录统计）
     bool playBirdWithoutRecording(uint16_t bird_id);
 
