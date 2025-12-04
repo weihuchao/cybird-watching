@@ -108,7 +108,10 @@ class CommandExecutor:
 
             while read_attempts < max_attempts:
                 if self.connection.bytes_available() > 0:
-                    data = await self.connection.read_data(1024)
+                    # 增加读取缓冲区大小
+                    available = self.connection.bytes_available()
+                    read_size = max(available, 4096)  # 至少4KB
+                    data = await self.connection.read_data(read_size)
                     try:
                         new_data = data.decode('utf-8', errors='ignore')
                         raw_data += new_data

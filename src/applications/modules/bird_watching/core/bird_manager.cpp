@@ -1,4 +1,5 @@
 #include "bird_manager.h"
+#include "bird_utils.h"
 #include "system/logging/log_manager.h"
 #include "drivers/sensors/imu/imu.h"
 #include "drivers/io/rgb_led/rgb_led.h"
@@ -437,13 +438,6 @@ const std::vector<BirdInfo>& BirdManager::getAllBirds() const {
         return empty;
     }
     return selector_->getAllBirds();
-}
-
-uint8_t BirdManager::detectFrameCount(uint16_t bird_id) const {
-    if (!animation_) {
-        return 0;
-    }
-    return animation_->detectFrameCount(bird_id);
 }
 
 void BirdManager::checkAndHideBirdInfo() {

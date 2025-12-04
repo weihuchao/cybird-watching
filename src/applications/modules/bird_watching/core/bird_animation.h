@@ -32,9 +32,6 @@ public:
     // 设置显示对象
     void setDisplayObject(lv_obj_t* obj);
 
-    // 检测小鸟的帧数（通过扫描目录）
-    uint8_t detectFrameCount(uint16_t bird_id) const;
-
 private:
     lv_obj_t* display_obj_;      // LVGL显示对象
     BirdInfo current_bird_;      // 当前小鸟信息

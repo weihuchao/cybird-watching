@@ -68,9 +68,6 @@ public:
     // 获取小鸟列表
     const std::vector<BirdInfo>& getAllBirds() const;
 
-    // 检测小鸟的帧数
-    uint8_t detectFrameCount(uint16_t bird_id) const;
-
     // 显示小鸟信息（在右下角）
     void showBirdInfo(uint16_t bird_id, const std::string& bird_name, bool is_new);
 

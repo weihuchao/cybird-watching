@@ -40,28 +40,53 @@ class CommandResponseHandler:
             # 初始等待响应开始
             await asyncio.sleep(self.config.response_wait_ms / 1000.0)
 
+            # 用于检测数据接收是否停止
+            last_data_time = time.time()
+            no_data_timeout = 0.5  # 0.5秒内没有新数据则认为接收完成
+            
             while (time.time() - start_time) < timeout_sec:
                 # 一次性读取所有可用数据而不是固定大小
                 if connection.bytes_available() > 0:
                     available_bytes = connection.bytes_available()
-                    data = await connection.read_data(available_bytes)
+                    # 确保一次至少读取足够的数据
+                    read_size = max(available_bytes, 4096)  # 增加缓冲区大小到4KB
+                    data = await connection.read_data(read_size)
 
                     try:
                         new_data = data.decode('utf-8', errors='ignore')
                     except UnicodeDecodeError:
                         continue
 
-                    raw_response += new_data
+                    if new_data:
+                        raw_response += new_data
+                        last_data_time = time.time()  # 更新最后接收数据的时间
 
                     # 使用预编译的标记进行查找，提升性能
                     start_pos = raw_response.find(self.start_marker)
                     if start_pos != -1:
                         end_pos = raw_response.find(self.end_marker, start_pos)
                         if end_pos != -1:
-                            # 找到完整响应，立即返回
+                            # 找到完整响应，但再等待一小段时间确保没有更多数据
+                            await asyncio.sleep(0.05)
+                            # 再次检查是否有剩余数据
+                            if connection.bytes_available() > 0:
+                                continue  # 继续读取
+                            
+                            # 确认响应完整，返回
                             content_start = start_pos + self.start_marker_len
                             content = raw_response[content_start:end_pos]
                             return content.strip()
+                else:
+                    # 没有可用数据时，检查是否超过无数据超时时间
+                    if raw_response and (time.time() - last_data_time) > no_data_timeout:
+                        # 已经有部分数据且一段时间没有新数据，检查是否有完整标记
+                        start_pos = raw_response.find(self.start_marker)
+                        if start_pos != -1:
+                            end_pos = raw_response.find(self.end_marker, start_pos)
+                            if end_pos != -1:
+                                content_start = start_pos + self.start_marker_len
+                                content = raw_response[content_start:end_pos]
+                                return content.strip()
 
                 # 减少等待时间，提高响应性
                 await asyncio.sleep(0.01)  # 10ms而不是配置中的值
@@ -101,9 +126,9 @@ class CommandResponseHandler:
         """格式化原始响应以便显示"""
         # 替换换行符以便在终端中显示
         formatted = raw_response.replace('\r\n', '\\n').replace('\r', '\\n').replace('\n', '\\n')
-        # 限制长度避免输出过长
-        if len(formatted) > 200:
-            formatted = formatted[:200] + "...(截断)"
+        # 增加显示长度限制，以便查看更多数据
+        if len(formatted) > 500:
+            formatted = formatted[:500] + "...(截断)"
         return formatted
 
     def validate_response_markers(self, response: str) -> bool:
@@ -132,7 +157,10 @@ class CommandResponseHandler:
 
             while (time.time() - start_time) < timeout_sec:
                 if connection.bytes_available() > 0:
-                    data = await connection.read_data(1024)
+                    # 增加读取缓冲区大小
+                    available = connection.bytes_available()
+                    read_size = max(available, 4096)  # 至少4KB
+                    data = await connection.read_data(read_size)
                     try:
                         new_data = data.decode('utf-8', errors='ignore')
                         raw_response += new_data
@@ -141,7 +169,10 @@ class CommandResponseHandler:
 
                     # 检查是否有结束标记
                     if self.config.response_end_marker in raw_response:
-                        break
+                        # 再等待一小段时间确保所有数据都到达
+                        await asyncio.sleep(0.05)
+                        if connection.bytes_available() == 0:
+                            break
 
                 await asyncio.sleep(self.config.data_read_interval_ms / 1000.0)
 

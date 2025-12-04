@@ -1,4 +1,5 @@
 #include "bird_watching.h"
+#include "bird_utils.h"
 #include "system/logging/log_manager.h"
 
 namespace BirdWatching {
@@ -83,15 +84,20 @@ void listBirds() {
     Serial.println("----   --------------   ------   ------");
 
     int total_weight = 0;
-    for (const auto& bird : birds) {
-        // 检测每只小鸟的实际帧数
-        uint8_t frame_count = g_birdManager->detectFrameCount(bird.id);
+    for (auto& bird : birds) {
+        // 使用缓存的帧数，如果未缓存则检测
+        if (bird.frame_count == 0) {
+            bird.frame_count = BirdWatching::Utils::detectFrameCount(bird.id);
+        }
 
         char line[128];
         snprintf(line, sizeof(line), "%-4d   %-16s   %-6d   %-d",
-                 bird.id, bird.name.c_str(), bird.weight, frame_count);
+                 bird.id, bird.name.c_str(), bird.weight, bird.frame_count);
         Serial.println(line);
         total_weight += bird.weight;
+        
+        // 每输出一只小鸟，喂一次狗
+        yield();
     }
 
     Serial.println("----   --------------   ------   ------");

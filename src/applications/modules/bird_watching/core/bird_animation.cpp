@@ -1,4 +1,5 @@
 #include "bird_animation.h"
+#include "bird_utils.h"
 #include "system/logging/log_manager.h"
 #include "drivers/storage/sd_card/sd_card.h"
 #include "system/tasks/task_manager.h"
@@ -81,11 +82,20 @@ bool BirdAnimation::loadBird(const BirdInfo& bird_info) {
     current_bird_ = bird_info;
     current_frame_ = 0;
 
-    // 自动检测帧数
-    current_frame_count_ = detectFrameCount(current_bird_.id);
-    if (current_frame_count_ == 0) {
-        LOG_WARN("ANIM", "No frames found for bird, using default");
-        current_frame_count_ = 8; // 默认帧数
+    // 优先使用缓存的帧数，避免重复检测
+    if (bird_info.frame_count > 0) {
+        current_frame_count_ = bird_info.frame_count;
+        LOG_DEBUG("ANIM", "Using cached frame count: " + String(current_frame_count_));
+    } else {
+        // 只在必要时才检测帧数（使用公共工具函数）
+        current_frame_count_ = Utils::detectFrameCount(current_bird_.id);
+        if (current_frame_count_ == 0) {
+            LOG_WARN("ANIM", "No frames found for bird, using default");
+            current_frame_count_ = 8; // 默认帧数
+        } else {
+            // 更新缓存（虽然是const引用，但frame_count是mutable的）
+            bird_info.frame_count = current_frame_count_;
+        }
     }
 
     
@@ -241,26 +251,6 @@ void BirdAnimation::playNextFrame() {
 }
 
 
-uint8_t BirdAnimation::detectFrameCount(uint16_t bird_id) const {
-    uint8_t count = 0;
-    char frame_path[64];
-
-    // 从1开始递增检测，直到文件不存在
-    for (uint8_t i = 1; ; i++) {
-        snprintf(frame_path, sizeof(frame_path), "/birds/%d/%d.bin", bird_id, i);
-
-        // 使用SD.exists检测文件是否存在
-        if (SD.exists(frame_path)) {
-            count++;
-        } else {
-            break; // 文件不存在，停止检测
-        }
-    }
-
-    LOG_DEBUG("ANIM", "Detected frame count: " + String(count) + " frames for bird " + String(bird_id));
-    return count; // 返回实际检测到的帧数
-}
-
 bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
     // 使用项目的SD卡接口
     File file = SD.open(file_path.c_str());
@@ -339,11 +329,12 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
         return false;
     }
 
-    // 读取像素数据 - 分块读取以避免长时间阻塞
-    const size_t CHUNK_SIZE = 4096; // 每次读取4KB
+    // 读取像素数据 - 优化分块读取策略
+    const size_t CHUNK_SIZE = 16384; // 增大到16KB以减少延迟次数
     size_t bytes_read = 0;
     size_t remaining = data_size;
     uint8_t* write_ptr = img_data;
+    uint32_t last_yield = millis();
     
     while (remaining > 0) {
         size_t to_read = (remaining > CHUNK_SIZE) ? CHUNK_SIZE : remaining;
@@ -361,8 +352,12 @@ bool BirdAnimation::tryManualImageLoad(const std::string& file_path) {
         write_ptr += chunk_read;
         remaining -= chunk_read;
         
-        // 让出CPU，允许看门狗任务运行
-        vTaskDelay(1); // 1ms延迟
+        // 只在必要时让出CPU（每50ms或每64KB）
+        uint32_t now = millis();
+        if (now - last_yield >= 50 || bytes_read % (64 * 1024) == 0) {
+            vTaskDelay(1);
+            last_yield = now;
+        }
     }
     
     file.close();

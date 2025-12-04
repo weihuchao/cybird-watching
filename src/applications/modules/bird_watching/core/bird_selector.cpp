@@ -1,4 +1,5 @@
 #include "bird_selector.h"
+#include "bird_utils.h"
 #include "system/logging/log_manager.h"
 #include "drivers/storage/sd_card/sd_card.h"
 #include <cstdlib>
@@ -194,12 +195,15 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
         LOG_INFO("SELECTOR", values_msg);
 
         if (id > 0 && !name.empty() && weight > 0) {
-            birds_.emplace_back(id, name, weight);
+            BirdInfo bird(id, name, weight);
+            // 预先检测帧数并缓存（使用公共工具函数）
+            bird.frame_count = Utils::detectFrameCount(id);
+            birds_.push_back(bird);
             total_weight_ += weight;
             bird_count++;
 
             char success_msg[256];
-            snprintf(success_msg, sizeof(success_msg), "Successfully added bird #%d: %s", id, name.c_str());
+            snprintf(success_msg, sizeof(success_msg), "Successfully added bird #%d: %s (%d frames)", id, name.c_str(), bird.frame_count);
             LOG_INFO("SELECTOR", success_msg);
         } else {
             char invalid_msg[256];

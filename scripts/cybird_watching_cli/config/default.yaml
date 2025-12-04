@@ -11,10 +11,10 @@ serial:
 response:
   response_start_marker: "<<<RESPONSE_START>>>"
   response_end_marker: "<<<RESPONSE_END>>>"
-  command_timeout_ms: 6000      # 命令超时(毫秒)
-  response_wait_ms: 100         # 响应等待时间(毫秒)
+  command_timeout_ms: 10000     # 命令超时(毫秒) - 增加到10秒以支持大数据量响应
+  response_wait_ms: 200         # 响应等待时间(毫秒) - 增加初始等待时间
   data_read_interval_ms: 10     # 数据读取间隔(毫秒)
-  no_data_timeout_ms: 800       # 无数据超时(毫秒)
+  no_data_timeout_ms: 1000      # 无数据超时(毫秒) - 增加到1秒
 
 # 用户界面配置
 ui:
