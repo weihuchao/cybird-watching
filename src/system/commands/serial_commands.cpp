@@ -528,7 +528,7 @@ void SerialCommands::handleFileCommand(const String& param) {
         Serial.println("  4. Send base64 encoded data in chunks (max 512 bytes/line)");
         Serial.println("  5. Send: FILE_END");
         Serial.println("\nExamples:");
-        Serial.println("  file download /configs/bird_config.json");
+        Serial.println("  file download /configs/bird_config.csv");
         Serial.println("  file info /birds/1001/1.bin");
         Serial.println("  file delete /temp/old_file.txt");
     }

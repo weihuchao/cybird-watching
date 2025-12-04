@@ -39,7 +39,7 @@
 
 ## 使用方法
 
-1. 将`bird_config.json`复制到SD卡的`/configs/`目录下
+1. 将`bird_config.csv`复制到SD卡的`/configs/`目录下
 2. 创建对应的资源目录结构
 3. 将RGB565格式的图片文件（.bin）放入对应目录
 4. 系统启动后会自动加载配置并开始工作

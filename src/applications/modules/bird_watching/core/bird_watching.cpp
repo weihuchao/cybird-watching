@@ -135,9 +135,9 @@ void listBirds() {
     Serial.println();
 
     if (birds.empty()) {
-        Serial.println("Note: No birds found. Please check bird_config.json");
+        Serial.println("Note: No birds found. Please check bird_config.csv");
     } else {
-        Serial.println("Note: Loaded from bird_config.json");
+        Serial.println("Note: Loaded from bird_config.csv");
     }
 }
 

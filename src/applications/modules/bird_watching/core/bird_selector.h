@@ -13,7 +13,7 @@ public:
     ~BirdSelector();
 
     // 初始化选择器，加载小鸟列表
-    bool initialize(const std::string& config_path = "S:/configs/bird_config.json");
+    bool initialize(const std::string& config_path = "S:/configs/bird_config.csv");
 
     // 根据权重随机选择一只小鸟
     BirdInfo getRandomBird();

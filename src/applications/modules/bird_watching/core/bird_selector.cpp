@@ -7,50 +7,52 @@
 #include <cstdio>
 #include <vector>
 
-// 简单的JSON解析函数（避免引入复杂依赖）
+// CSV解析辅助函数
 namespace {
-    // 从字符串中提取整数
-    int extractInt(const char* str, const char* key) {
-        char search_key[64];
-        snprintf(search_key, sizeof(search_key), "\"%s\"", key);
+    // 解析CSV行 - 跳过引号处理
+    void parseCSVLine(const char* line, int& id, std::string& name, int& weight) {
+        id = 0;
+        name.clear();
+        weight = 0;
 
-        const char* found = strstr(str, search_key);
-        if (!found) return 0;
+        const char* ptr = line;
 
-        found = strchr(found, ':');
-        if (!found) return 0;
-        found++; // 跳过':'
+        // 解析ID
+        id = atoi(ptr);
 
-        // 跳过空白字符
-        while (*found && (*found == ' ' || *found == '\t')) found++;
+        // 跳过到逗号后的name字段
+        ptr = strchr(ptr, ',');
+        if (!ptr) return;
+        ptr++; // 跳过逗号
 
-        return atoi(found);
-    }
-
-    // 从字符串中提取字符串
-    std::string extractString(const char* str, const char* key) {
-        char search_key[64];
-        snprintf(search_key, sizeof(search_key), "\"%s\"", key);
-
-        const char* found = strstr(str, search_key);
-        if (!found) return "";
-
-        found = strchr(found, ':');
-        if (!found) return "";
-        found++; // 跳过':'
-
-        // 跳过空白字符
-        while (*found && (*found == ' ' || *found == '\t')) found++;
-
-        if (*found != '"') return "";
-        found++; // 跳过第一个'"'
-
-        std::string result;
-        while (*found && *found != '"' && *found != '\n') {
-            result += *found++;
+        // 解析name（处理可能的引号）
+        if (*ptr == '"') {
+            ptr++; // 跳过开始引号
+            while (*ptr && *ptr != '"') {
+                name += *ptr++;
+            }
+            if (*ptr == '"') ptr++; // 跳过结束引号
+        } else {
+            while (*ptr && *ptr != ',') {
+                name += *ptr++;
+            }
         }
 
-        return result;
+        // 跳过到逗号后的weight字段
+        ptr = strchr(ptr, ',');
+        if (!ptr) return;
+        ptr++; // 跳过逗号
+
+        // 解析weight
+        weight = atoi(ptr);
+    }
+
+    // 去除字符串首尾空白字符
+    std::string trim(const std::string& str) {
+        size_t start = str.find_first_not_of(" \t\r\n");
+        if (start == std::string::npos) return "";
+        size_t end = str.find_last_not_of(" \t\r\n");
+        return str.substr(start, end - start + 1);
     }
 }
 
@@ -116,7 +118,7 @@ const BirdInfo* BirdSelector::findBird(const std::string& name) const {
 }
 
 bool BirdSelector::reloadConfig() {
-    return initialize("S:/configs/bird_config.json");
+    return initialize("S:/configs/bird_config.csv");
 }
 
 bool BirdSelector::loadBirdConfig(const std::string& config_path) {
@@ -124,10 +126,10 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
     LOG_INFO("SELECTOR", path_msg.c_str());
 
     // 直接使用正确路径
-    File file = SD.open("/configs/bird_config.json", "r");
+    File file = SD.open("/configs/bird_config.csv", "r");
 
     if (!file) {
-        LOG_ERROR("SELECTOR", "Cannot open bird config file: /configs/bird_config.json");
+        LOG_ERROR("SELECTOR", "Cannot open bird config file: /configs/bird_config.csv");
         return false;
     }
 
@@ -155,47 +157,56 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
 
     LOG_INFO("SELECTOR", buffer);
 
-    // 简单解析JSON数组
+    // 解析CSV文件
     birds_.clear();
     total_weight_ = 0;
 
-    LOG_INFO("SELECTOR", "Starting JSON parsing and resource scanning");
+    LOG_INFO("SELECTOR", "Starting CSV parsing and resource scanning");
 
     const char* ptr = buffer;
     int bird_count = 0;
+    bool header_skipped = false;
+
     while (*ptr) {
-        // 查找对象开始
-        const char* obj_start = strchr(ptr, '{');
-        if (!obj_start) {
-            LOG_INFO("SELECTOR", "No more objects found");
-            break;
+        // 查找行开始
+        const char* line_start = ptr;
+        const char* line_end = strchr(ptr, '\n');
+        if (!line_end) {
+            line_end = ptr + strlen(ptr);
         }
 
-        // 查找对象结束
-        const char* obj_end = strchr(obj_start, '}');
-        if (!obj_end) {
-            LOG_ERROR("SELECTOR", "Unclosed object found");
-            break;
+        // 提取行内容
+        std::string line(line_start, line_end - line_start);
+        line = trim(line);
+
+        // 跳过空行
+        if (line.empty()) {
+            ptr = (*line_end) ? line_end + 1 : line_end;
+            continue;
         }
 
-        // 提取对象内容
-        std::string obj_content(obj_start + 1, obj_end - obj_start - 1);
+        // 跳过标题行（第一行）
+        if (!header_skipped) {
+            header_skipped = true;
+            ptr = (*line_end) ? line_end + 1 : line_end;
+            continue;
+        }
 
-        // 解析字段
-        int id = extractInt(obj_content.c_str(), "id");
-        std::string name = extractString(obj_content.c_str(), "name");
-        int weight = extractInt(obj_content.c_str(), "weight");
+        // 解析CSV行
+        int id, weight;
+        std::string name;
+        parseCSVLine(line.c_str(), id, name, weight);
 
         if (id > 0 && !name.empty() && weight > 0) {
             BirdInfo bird(id, name, weight);
-            
+
             // 预先检测帧数并缓存（显示进度）
             char progress_msg[256];
             snprintf(progress_msg, sizeof(progress_msg), "Scanning bird #%d: %s...", id, name.c_str());
             LOG_INFO("SELECTOR", progress_msg);
-            
+
             bird.frame_count = Utils::detectFrameCount(id);
-            
+
             birds_.push_back(bird);
             total_weight_ += weight;
             bird_count++;
@@ -203,7 +214,7 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
             char success_msg[256];
             snprintf(success_msg, sizeof(success_msg), "  -> Found %d frames for bird #%d", bird.frame_count, id);
             LOG_INFO("SELECTOR", success_msg);
-            
+
             // 每处理一只小鸟喂一次狗
             yield();
         } else {
@@ -212,7 +223,7 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
             LOG_WARN("SELECTOR", invalid_msg);
         }
 
-        ptr = obj_end + 1;
+        ptr = (*line_end) ? line_end + 1 : line_end;
     }
 
     char complete_msg[128];

@@ -293,7 +293,7 @@ bool BirdManager::initializeSubsystems(lv_obj_t* display_obj) {
 
     // 初始化小鸟选择器
     selector_ = new BirdSelector();
-    if (!selector_ || !selector_->initialize("/configs/bird_config.json")) {
+    if (!selector_ || !selector_->initialize("/configs/bird_config.csv")) {
         LOG_ERROR("BIRD", "Failed to initialize bird selector");
         return false;
     }
