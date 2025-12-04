@@ -18,46 +18,61 @@ static lv_image_dsc_t* logo_img_dsc = NULL;
 static uint8_t* logo_img_data = NULL;
 static uint32_t logo_show_time = 0;  // logo显示的开始时间
 static bool logo_visible = false;    // logo是否可见
+static bool logo_timeout_enabled = false;  // logo超时检查是否启用（默认禁用，由外部启用）
 
-// 检查并隐藏logo（如果超过5秒）
+// 前向声明
+static void hideLogo();
+
+// 检查并隐藏logo（只在超时检查启用后才生效）
 static void checkAndHideLogo()
+{
+	if (!logo_visible || !logo_timeout_enabled) {
+		return;
+	}
+	
+	uint32_t current_time = millis();
+	if (current_time - logo_show_time >= 10000) {  // 10秒超时保护
+		LOG_INFO("GUI", "Logo display timeout (10s), switching to bird scene...");
+		hideLogo();
+	}
+}
+
+// 隐藏logo并切换到小鸟界面（内部函数）
+static void hideLogo()
 {
 	if (!logo_visible) {
 		return;
 	}
 	
-	uint32_t current_time = millis();
-	if (current_time - logo_show_time >= 5000) {
-		LOG_INFO("GUI", "Logo display timeout, switching to bird scene...");
-		
-		// 切换到小鸟展示界面
-		extern lv_ui guider_ui;
-		if (guider_ui.scenes != NULL) {
-			lv_scr_load(guider_ui.scenes);
-			LOG_INFO("GUI", "Switched to bird scene");
-		}
-		
-		// 删除logo屏幕（在切换后删除以避免闪烁）
-		if (logo_scr != NULL) {
-			lv_obj_del(logo_scr);
-			logo_scr = NULL;
-			logo_img = NULL;  // logo_img 是 logo_scr 的子对象,会被自动删除
-			LOG_INFO("GUI", "Logo screen deleted");
-		}
-		
-		// 释放logo图片内存
-		if (logo_img_data != NULL) {
-			free(logo_img_data);
-			logo_img_data = NULL;
-		}
-		if (logo_img_dsc != NULL) {
-			free(logo_img_dsc);
-			logo_img_dsc = NULL;
-			LOG_INFO("GUI", "Logo memory freed");
-		}
-		
-		logo_visible = false;
+	LOG_INFO("GUI", "Hiding logo and switching to bird scene...");
+	
+	// 切换到小鸟展示界面
+	extern lv_ui guider_ui;
+	if (guider_ui.scenes != NULL) {
+		lv_scr_load(guider_ui.scenes);
+		LOG_INFO("GUI", "Switched to bird scene");
 	}
+	
+	// 删除logo屏幕（在切换后删除以避免闪烁）
+	if (logo_scr != NULL) {
+		lv_obj_del(logo_scr);
+		logo_scr = NULL;
+		logo_img = NULL;  // logo_img 是 logo_scr 的子对象,会被自动删除
+		LOG_INFO("GUI", "Logo screen deleted");
+	}
+	
+	// 释放logo图片内存
+	if (logo_img_data != NULL) {
+		free(logo_img_data);
+		logo_img_data = NULL;
+	}
+	if (logo_img_dsc != NULL) {
+		free(logo_img_dsc);
+		logo_img_dsc = NULL;
+		LOG_INFO("GUI", "Logo memory freed");
+	}
+	
+	logo_visible = false;
 }
 
 // 从SD卡手动加载logo图片
@@ -190,8 +205,9 @@ void lv_init_gui(void)
 		// 记录显示时间
 		logo_show_time = millis();
 		logo_visible = true;
+		logo_timeout_enabled = false;  // 初始禁用超时检查，等待资源扫描完成
 		
-		LOG_INFO("GUI", "Logo screen loaded");
+		LOG_INFO("GUI", "Logo screen loaded (timeout check disabled during resource scan)");
 	} else {
 		LOG_WARN("GUI", "Failed to load logo, showing bird scene directly");
 		// 如果logo加载失败,直接加载小鸟界面(不创建logo屏幕)
@@ -207,6 +223,17 @@ void lv_check_logo_timeout(void)
 {
 	// 检查并隐藏logo（如果超时）
 	checkAndHideLogo();
+}
+
+void lv_hide_logo(void)
+{
+	// 立即隐藏logo（用于资源扫描完成后）
+	// 如果logo还在显示，启用超时检查作为保护机制
+	if (logo_visible) {
+		logo_timeout_enabled = true;  // 启用超时检查
+		LOG_INFO("GUI", "Resource scan completed, hiding logo and enabling timeout protection");
+	}
+	hideLogo();
 }
 
 } // extern "C"

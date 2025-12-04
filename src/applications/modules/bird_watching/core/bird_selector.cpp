@@ -159,7 +159,7 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
     birds_.clear();
     total_weight_ = 0;
 
-    LOG_INFO("SELECTOR", "Starting JSON parsing");
+    LOG_INFO("SELECTOR", "Starting JSON parsing and resource scanning");
 
     const char* ptr = buffer;
     int bird_count = 0;
@@ -181,30 +181,31 @@ bool BirdSelector::loadBirdConfig(const std::string& config_path) {
         // 提取对象内容
         std::string obj_content(obj_start + 1, obj_end - obj_start - 1);
 
-        char parse_msg[128];
-        snprintf(parse_msg, sizeof(parse_msg), "Parsing object %d: %s", bird_count + 1, obj_content.c_str());
-        LOG_INFO("SELECTOR", parse_msg);
-
         // 解析字段
         int id = extractInt(obj_content.c_str(), "id");
         std::string name = extractString(obj_content.c_str(), "name");
         int weight = extractInt(obj_content.c_str(), "weight");
 
-        char values_msg[256];
-        snprintf(values_msg, sizeof(values_msg), "Parsed values - id: %d, name: %s, weight: %d", id, name.c_str(), weight);
-        LOG_INFO("SELECTOR", values_msg);
-
         if (id > 0 && !name.empty() && weight > 0) {
             BirdInfo bird(id, name, weight);
-            // 预先检测帧数并缓存（使用公共工具函数）
+            
+            // 预先检测帧数并缓存（显示进度）
+            char progress_msg[256];
+            snprintf(progress_msg, sizeof(progress_msg), "Scanning bird #%d: %s...", id, name.c_str());
+            LOG_INFO("SELECTOR", progress_msg);
+            
             bird.frame_count = Utils::detectFrameCount(id);
+            
             birds_.push_back(bird);
             total_weight_ += weight;
             bird_count++;
 
             char success_msg[256];
-            snprintf(success_msg, sizeof(success_msg), "Successfully added bird #%d: %s (%d frames)", id, name.c_str(), bird.frame_count);
+            snprintf(success_msg, sizeof(success_msg), "  -> Found %d frames for bird #%d", bird.frame_count, id);
             LOG_INFO("SELECTOR", success_msg);
+            
+            // 每处理一只小鸟喂一次狗
+            yield();
         } else {
             char invalid_msg[256];
             snprintf(invalid_msg, sizeof(invalid_msg), "Invalid bird data - id: %d, name: '%s', weight: %d", id, name.c_str(), weight);

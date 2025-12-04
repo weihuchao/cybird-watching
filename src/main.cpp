@@ -115,16 +115,7 @@ void setup()
     }
     LOG_INFO("MAIN", "Task Manager initialized (LVGL mutex created)");
 
-    /*** Init Bird Watching System (requires LVGL mutex) ***/
-    LOG_INFO("MAIN", "Initializing Bird Watching System...");
-    // 传入scenes给BirdManager作为显示对象（统计界面的父对象）
-    if (BirdWatching::initializeBirdWatching(guider_ui.scenes)) {
-        LOG_INFO("MAIN", "Bird Watching System initialized successfully");
-    } else {
-        LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
-    }
-
-    /*** Start Dual-Core Tasks ***/
+    /*** Start Dual-Core Tasks EARLY ***/
     LOG_INFO("MAIN", "Starting dual-core tasks...");
 
     if (!taskManager->startTasks()) {
@@ -135,10 +126,25 @@ void setup()
     LOG_INFO("MAIN", "  - Core 0: UI Task (LVGL + Display + Animation)");
     LOG_INFO("MAIN", "  - Core 1: System Task (Sensors + Commands + Business Logic)");
 
-    // ⚠️ 重要：直接加载logo（内部会处理加载失败的情况）
+    // ⚠️ 重要：先加载并显示logo（在扫描资源之前）
     LOG_INFO("MAIN", "Loading and displaying logo...");
     lv_init_gui();  // 尝试加载logo(如果SD卡可用),否则显示小鸟界面
-    LOG_INFO("MAIN", "Logo initialized");
+    LOG_INFO("MAIN", "Logo displayed, starting to scan bird resources...");
+
+    /*** Init Bird Watching System (扫描小鸟资源期间logo持续显示) ***/
+    LOG_INFO("MAIN", "Initializing Bird Watching System (scanning bird resources)...");
+    // 传入scenes给BirdManager作为显示对象（统计界面的父对象）
+    if (BirdWatching::initializeBirdWatching(guider_ui.scenes)) {
+        LOG_INFO("MAIN", "Bird Watching System initialized successfully");
+    } else {
+        LOG_ERROR("MAIN", "Failed to initialize Bird Watching System");
+    }
+    LOG_INFO("MAIN", "Bird resources scan completed");
+    
+    // 扫描完成后立即关闭logo，显示小鸟界面
+    LOG_INFO("MAIN", "Closing logo after resource scan...");
+    lv_hide_logo();
+    LOG_INFO("MAIN", "Logo closed, bird interface ready");
 
     LOG_INFO("MAIN", "Setup completed, tasks running...");
     
