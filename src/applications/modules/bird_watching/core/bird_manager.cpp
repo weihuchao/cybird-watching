@@ -214,13 +214,13 @@ void BirdManager::onGestureEvent(int gesture_type) {
 
     switch (gesture_type) {
         case GESTURE_FORWARD_HOLD: // 前倾保持3秒 - 进入数据界面
-            LOG_INFO("BIRD", "Forward hold 3s detected, showing stats view");
+            LOG_INFO("BIRD", "Forward hold 1s detected, showing stats view");
             showStatsView();
             rgb.flashGreen(100); // 绿光闪一下
             break;
 
         case GESTURE_BACKWARD_HOLD: // 后倾保持3秒 - 退出数据界面
-            LOG_INFO("BIRD", "Backward hold 3s detected, hiding stats view");
+            LOG_INFO("BIRD", "Backward hold 1s detected, hiding stats view");
             hideStatsView();
             rgb.flashGreen(100); // 绿光闪一下
             break;
