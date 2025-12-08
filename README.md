@@ -123,9 +123,6 @@ cd scripts
 
 # 上传固件并监控
 .\upload_and_monitor.bat
-
-# 启动串口命令工具（交互式 CLI）
-.\cybird_cli.bat
 ```
 
 ### 6. 首次启动
@@ -139,7 +136,11 @@ cd scripts
 
 ### 串口命令
 
-使用 `help` 显示所有可用的命令。
+运行 `scripts/` 下的脚本：
+```pwsh
+cd scripts/
+.\cybird_cli.bat
+```
 
 连接串口（115200 波特率）后，可使用以下命令：
 
@@ -159,7 +160,7 @@ bird stats          # 查看观鸟统计
 bird reset          # 重置统计数据
 ```
 
-#### 任务监控（v3.0 新增）
+#### 任务监控
 ```bash
 task stats          # 查看任务统计信息（栈使用、CPU占用等）
 task info           # 查看详细系统信息
@@ -175,7 +176,7 @@ log size            # 查看日志文件大小
 log level <level>   # 设置日志级别 (DEBUG/INFO/WARN/ERROR)
 ```
 
-#### 文件管理（v3.0 新增）
+#### 文件管理
 ```bash
 tree [path] [levels]    # 显示 SD 卡目录树（默认根目录，2 层）
 file upload <path>      # 上传文件（需要 CLI 工具）
@@ -184,27 +185,8 @@ file delete <path>      # 删除文件
 file info <path>        # 查看文件信息
 ```
 
-### IMU 手势控制
-- **切换小鸟**：在小鸟展示界面，保持左倾/右倾可以触发切换小鸟（CD 为 10 秒），触发成功 LED 闪烁蓝灯
-- **统计界面**：保持前倾进入统计界面，触发成功 LED 闪烁绿光。在统计界面内，保持左倾/右倾进行翻页
-- **退出统计**：在统计界面保持后倾可退出到小鸟界面
+大文件还是建议直接插 SD 卡操作。
 
-### CLI 工具（推荐）
-项目提供了完善的 Python CLI 工具，位于 `scripts/cybird_watching_cli/`：
-
-```bash
-# 安装 uv（如果还没有）
-pip install -U uv
-
-# 使用快捷脚本（推荐）
-cd scripts
-.\cybird_cli.bat          # 启动交互式 CLI
-
-# 或直接进入 CLI 目录
-cd scripts/cybird_watching_cli
-uv run cybird-cli         # 交互模式
-uv run cybird-cli send "bird trigger"  # 单命令模式
-```
 
 CLI 工具特性：
 - 🎯 交互式命令行界面
@@ -214,6 +196,11 @@ CLI 工具特性：
 - 🔄 自动重连
 
 详见：[CLI 工具使用指南](scripts/README_CLI_TOOLS.md)
+
+### IMU 手势控制
+- **切换小鸟**：在小鸟展示界面，保持左倾/右倾可以触发切换小鸟（CD 为 10 秒），触发成功 LED 闪烁蓝灯
+- **统计界面**：保持前倾进入统计界面，触发成功 LED 闪烁绿光。在统计界面内，保持左倾/右倾进行翻页
+- **退出统计**：在统计界面保持后倾可退出到小鸟界面
 
 ## 📁 项目结构
 
@@ -358,15 +345,8 @@ if (taskMgr->takeLVGLMutex(100)) {
 }
 ```
 
-### 添加新的小鸟动画
-1. 准备小鸟图片序列（建议 240x240 像素）
-2. 使用 `scripts/converter/` 工具转换为 bin 格式
-3. 在 SD 卡创建新目录（如 `/birds/1014/`）
-4. 在 `resources/configs/bird_config.csv` 添加配置：
-   ```csv
-   1014,新鸟名称,10
-   ```
-5. 使用 `bird trigger 1014` 命令测试
+### 添加新的小鸟资源
+参考 [添加小鸟指引](docs/GUIDE_TO_ADD_NEW_BIRDS.md)
 
 ### 使用日志系统
 ```cpp

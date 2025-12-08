@@ -29,8 +29,8 @@
 Name:  lv_font_notosanssc_18  ⚠️ 数字要匹配
 Size:  18
 Bpp:   2 bit-per-pixel
-Font:  NotoSansSC-Regular.ttf
-Range: 0x20-0x7F, 0x4E00-0x9FFF
+Font:  NotoSansSC-Medium.ttf # 这个文件在scripts/uniq_fonts/fonts/ 目录有备份
+Symbols:  !#$%&()*+,-./012345...
 ```
 
 ### 步骤 3: 更新字体声明
