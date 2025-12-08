@@ -7,6 +7,16 @@ echo   CybirdWatching CLI 快速启动器
 echo ======================================
 echo.
 
+REM 读取platformio.ini配置
+call "%~dp0read_platformio.bat"
+if "%COM_PORT%"=="" (
+    echo 警告: 无法读取配置，使用默认端口 COM3
+    set "COM_PORT=COM3"
+)
+
+echo 使用端口: %COM_PORT%
+echo.
+
 REM 检查是否在正确目录
 if not exist "cybird_watching_cli\src\cybird_watching_cli\main.py" (
     echo 错误: 找不到cybird_watching_cli目录
@@ -31,7 +41,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM 启动CLI
-uv run python -m cybird_watching_cli.main -p COM5
+uv run python -m cybird_watching_cli.main -p %COM_PORT%
 
 echo.
 echo 感谢使用CybirdWatching CLI！
