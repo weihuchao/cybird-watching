@@ -284,7 +284,7 @@ void TaskManager::systemTaskFunction(void* parameter)
                 // BirdManager会根据当前状态决定如何响应
                 switch (gesture) {
                     case GESTURE_FORWARD_HOLD:
-                        LOG_INFO("SYS_TASK", "Forward hold detected (3s)");
+                        LOG_INFO("SYS_TASK", "Forward hold detected (1s)");
                         if (manager->takeLVGLMutex(100)) {
                             BirdWatching::onGesture(GESTURE_FORWARD_HOLD);
                             manager->giveLVGLMutex();
@@ -292,7 +292,7 @@ void TaskManager::systemTaskFunction(void* parameter)
                         break;
                     
                     case GESTURE_BACKWARD_HOLD:
-                        LOG_INFO("SYS_TASK", "Backward hold detected (3s)");
+                        LOG_INFO("SYS_TASK", "Backward hold detected (1s)");
                         if (manager->takeLVGLMutex(100)) {
                             BirdWatching::onGesture(GESTURE_BACKWARD_HOLD);
                             manager->giveLVGLMutex();
