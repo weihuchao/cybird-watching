@@ -24,7 +24,7 @@ from .converter_bridge import ConverterBridge, RGB565Config
 def cli():
     """MP4转RGB565转换器 - 将MP4视频转换为RGB565格式的帧序列
 
-    这个工具可以将MP4视频文件转换为LVGL 7.9.1兼容的RGB565格式图像文件。
+    这个工具可以将MP4视频文件转换为LVGL 9.x兼容的RGB565格式图像文件。
     支持帧采样、图像处理、水印去除和批量处理等功能。
     """
     pass
