@@ -372,7 +372,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--version', '-v',
         action='version',
-        version='CybirdWatching CLI v1.2.0'
+        version='CybirdWatching CLI v1.0.0'
     )
 
     subparsers = parser.add_subparsers(dest='command', help='子命令')

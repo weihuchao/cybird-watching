@@ -2,6 +2,7 @@
 #include "serial_commands.h"
 #include "log_manager.h"
 #include "system/tasks/task_manager.h"
+#include "config/version.h"
 
 // 前向声明Bird Watching便捷函数
 namespace BirdWatching {
@@ -242,6 +243,8 @@ void SerialCommands::handleStatusCommand() {
     Serial.println("<<<RESPONSE_START>>>");
 
     Serial.println("=== CybirdWatching System Status ===");
+    Serial.println("Firmware: " + String(FIRMWARE_VERSION_FULL));
+    Serial.println("Architecture: " + String(FIRMWARE_ARCHITECTURE));
     Serial.println("Log Manager: " + String(logManager ? "OK" : "FAILED"));
     Serial.println("SD Card: " + String(logManager->isSDCardAvailable() ? "Available" : "Not Available"));
     Serial.println("Free Heap: " + String(ESP.getFreeHeap()) + " bytes");

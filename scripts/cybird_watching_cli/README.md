@@ -118,7 +118,7 @@ uv run python -m cybird_watching_cli.main send "help"
 ```bash
 $ cybird-cli
 
-欢迎使用 CybirdWatching CLI - 跨平台命令行工具 v1.0
+欢迎使用 CybirdWatching CLI - 跨平台命令行工具 v1.0.0
 ===============================================
 ✓ 设备状态: ON (端口: COM3)
 

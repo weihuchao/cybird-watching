@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "esp_task_wdt.h"
+#include "config/version.h"
 #include "drivers/display/display.h"
 #include "drivers/sensors/imu/imu.h"
 #include "drivers/sensors/ambient/ambient.h"
@@ -37,7 +38,7 @@ void setup()
 
     // 立即输出标识，不依赖日志系统
     Serial.println("=== CybirdWatching Starting ===");
-    Serial.println("*** FIRMWARE v3.0 - DUAL CORE ARCHITECTURE ***");
+    Serial.println(FIRMWARE_BANNER);
     Serial.println("Core 0: UI Rendering | Core 1: System Logic");
     delay(1000);
 
@@ -46,7 +47,7 @@ void setup()
     logManager->initialize(LogManager::LM_LOG_INFO, LogManager::OUTPUT_SERIAL);
 
     LOG_INFO("MAIN", "=== CybirdWatching Starting ===");
-    LOG_INFO("MAIN", "*** FIRMWARE v3.0 - DUAL CORE ARCHITECTURE ***");
+    LOG_INFO("MAIN", FIRMWARE_BANNER);
     delay(1000);
     LOG_INFO("MAIN", "Serial communication OK");
 

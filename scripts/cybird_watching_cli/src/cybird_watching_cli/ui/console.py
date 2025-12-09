@@ -167,7 +167,7 @@ class ConsoleInterface:
 
     def show_welcome(self) -> None:
         """显示欢迎信息"""
-        welcome_text = "CybirdWatching CLI - 跨平台命令行工具 v1.1"
+        welcome_text = "CybirdWatching CLI - 跨平台命令行工具 v1.0.0"
 
         if self.console:
             panel = Panel(

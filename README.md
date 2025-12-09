@@ -4,7 +4,7 @@
 
 当前项目的所有基础来自于[稚晖君的HoloCubic项目](https://github.com/peng-zhihui/HoloCubic)。
 
-![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32%20PICO32-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Arduino-red.svg)
 ![License](https://img.shields.io/badge/license-MIT-yellow.svg)
@@ -286,7 +286,6 @@ cybird-watching/
 │   ├── mp4converter/                     # 视频转换工具
 │   └── uniq_fonts/                       # 字体工具
 ├── docs/                                 # 项目文档
-│   ├── CHANGELOG_v3.0.md                 # v3.0 更新日志
 │   ├── DUAL_CORE_ARCHITECTURE.md         # 双核架构说明
 │   ├── BIRD_WATCHING_FLOW_DIAGRAM.md     # 流程图
 │   ├── bird_watching_test_guide.md       # 测试指南
@@ -465,6 +464,7 @@ log lines 100
 ### 核心文档
 - [双核架构详细说明](docs/DUAL_CORE_ARCHITECTURE.md) - FreeRTOS 双核设计
 - [开发指南](CLAUDE.md) - AI 辅助开发说明
+- [更新日志](CHANGELOG.md) - 版本更新历史
 
 ### 功能文档
 - [观鸟系统流程图](docs/BIRD_WATCHING_FLOW_DIAGRAM.md) - 系统流程详解

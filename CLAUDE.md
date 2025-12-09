@@ -364,4 +364,4 @@ upload_port = COM5      # 改为你的端口
 - **双核架构**: [docs/DUAL_CORE_ARCHITECTURE.md](docs/DUAL_CORE_ARCHITECTURE.md)
 - **修改字体**: [docs/CHANGE_FONT_SIZE.md](docs/CHANGE_FONT_SIZE.md)
 - **CLI工具**: [scripts/README_CLI_TOOLS.md](scripts/README_CLI_TOOLS.md)
-- **更新日志**: [docs/CHANGELOG_v3.0.md](docs/CHANGELOG_v3.0.md)
+- **更新日志**: [CHANGELOG.md](CHANGELOG.md)

@@ -9,11 +9,12 @@
 #include "bird_animation.h"
 #include "bird_selector.h"
 #include "bird_stats.h"
+#include "config/version.h"
 
-// 版本信息
-#define BIRD_WATCHING_VERSION_MAJOR 1
-#define BIRD_WATCHING_VERSION_MINOR 0
-#define BIRD_WATCHING_VERSION_PATCH 0
+// 观鸟模块版本信息（使用固件统一版本）
+#define BIRD_WATCHING_VERSION_MAJOR FIRMWARE_VERSION_MAJOR
+#define BIRD_WATCHING_VERSION_MINOR FIRMWARE_VERSION_MINOR
+#define BIRD_WATCHING_VERSION_PATCH FIRMWARE_VERSION_PATCH
 
 // 公共宏定义
 #define BIRD_WATCHING_MAX_BIRDS 20
