@@ -33,6 +33,7 @@ class ProcessConfig:
     output_format: str = 'rgb565'  # 输出格式 ('rgb565' 或 'png')
     workers: int = 4  # 并行处理线程数
     continue_on_error: bool = False  # 遇到错误时是否继续处理其他文件
+    palindrome: bool = False  # 是否启用回文模式（帧序列正向+倒序）
 
 
 @dataclass
@@ -218,6 +219,15 @@ class MP4BatchProcessor:
             if config.chroma_key_config:
                 print("应用自动抠图处理...")
                 processed_frames = self.chroma_key_processor.process_images(processed_frames, auto_detect=True)
+
+            # 6.5. 回文模式：在帧列表层面应用（适用于bundle模式）
+            if config.palindrome:
+                print(f"应用回文模式...")
+                original_count = len(processed_frames)
+                # 创建倒序的帧序列（不包括最后一帧，避免重复）
+                reversed_frames = processed_frames[-2::-1] if len(processed_frames) > 1 else []
+                processed_frames.extend(reversed_frames)
+                print(f"回文模式: {original_count}帧 → {len(processed_frames)}帧 (正序+倒序)")
 
             # 7. 转换输出格式
             with ConverterBridge() as converter_bridge:
@@ -604,7 +614,8 @@ class MP4BatchProcessor:
                             output_format: str = 'rgb565',
                             chroma_key: bool = False,
                             workers: int = 4,
-                            continue_on_error: bool = False) -> ProcessConfig:
+                            continue_on_error: bool = False,
+                            palindrome: bool = False) -> ProcessConfig:
         """创建处理配置
 
         Args:
@@ -619,6 +630,7 @@ class MP4BatchProcessor:
             chroma_key: 是否启用抠图功能
             workers: 并行工作线程数
             continue_on_error: 遇到错误时是否继续
+            palindrome: 是否启用回文模式（帧序列正向+倒序）
 
         Returns:
             ProcessConfig: 处理配置
@@ -651,5 +663,6 @@ class MP4BatchProcessor:
             chroma_key_config=chroma_key_config,
             output_format=output_format,
             workers=workers,
-            continue_on_error=continue_on_error
+            continue_on_error=continue_on_error,
+            palindrome=palindrome
         )

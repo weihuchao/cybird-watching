@@ -141,15 +141,16 @@ def process(video_path: Path, output_dir: Path, frame_rate: Optional[int],
               default='binary', help='RGB565输出格式')
 @click.option('--max-width', type=int, help='最大宽度限制')
 @click.option('--max-height', type=int, help='最大高度限制')
+@click.option('--pack-bundle', is_flag=True, help='打包为bundle.bin文件（减少文件数量）')
 @click.option('--workers', type=int, default=4, help='并行处理线程数')
 @click.option('--continue-on-error', is_flag=True, help='遇到错误时继续处理其他文件')
 @click.option('--keep-temp', is_flag=True, help='保留临时文件用于调试')
-@click.option('--palindrome', is_flag=True, help='导出完成后创建回文命名的.bin文件拷贝（用于倒序播放）')
+@click.option('--palindrome', is_flag=True, help='启用回文模式（帧序列正向+倒序）')
 def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
          frame_count: Optional[int], resize: Optional[str],
          watermark_region: Optional[str], output_format: str,
          rgb565_format: str, max_width: Optional[int], max_height: Optional[int],
-         workers: int, continue_on_error: bool, keep_temp: bool, palindrome: bool):
+         pack_bundle: bool, workers: int, continue_on_error: bool, keep_temp: bool, palindrome: bool):
     """批量处理目录中的所有MP4文件
 
     INPUT_DIR: 包含MP4文件的输入目录
@@ -173,6 +174,19 @@ def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
         if frame_rate and frame_count:
             raise click.BadParameter("不能同时指定 --frame-rate 和 --frame-count")
 
+        # 创建RGB565配置
+        rgb565_config = None
+        if output_format == 'rgb565':
+            rgb565_config = RGB565Config(
+                format=rgb565_format,
+                max_width=max_width,
+                max_height=max_height,
+                enabled=True,
+                pack_bundle=pack_bundle,
+                bundle_width=120,
+                bundle_height=120
+            )
+
         # 创建处理配置
         process_config = MP4BatchProcessor.create_process_config(
             frame_rate=frame_rate,
@@ -184,18 +198,22 @@ def batch(input_dir: Path, output_dir: Path, frame_rate: Optional[int],
             max_height=max_height,
             output_format=output_format,
             workers=workers,
-            continue_on_error=continue_on_error
+            continue_on_error=continue_on_error,
+            palindrome=palindrome
         )
+
+        # 使用自定义的RGB565配置覆盖
+        if rgb565_config:
+            process_config.rgb565_config = rgb565_config
 
         # 创建批量处理器
         processor = MP4BatchProcessor(max_workers=workers)
 
-        # 批量处理，如果启用了palindrome选项则使用回文拷贝功能
+        # 批量处理（palindrome已集成到帧处理流程）
         if palindrome:
-            print("  启用回文拷贝模式（用于倒序播放）")
-            result = processor.process_videos_with_palindrome_copy(input_dir, output_dir, process_config)
-        else:
-            result = processor.process_videos(input_dir, output_dir, process_config)
+            print("  启用回文模式（帧序列正向+倒序）")
+
+        result = processor.process_videos(input_dir, output_dir, process_config)
 
         # 根据结果设置退出码
         if result.failed_videos > 0 and not continue_on_error:

@@ -11,6 +11,7 @@ import sys
 import subprocess
 import tempfile
 import shutil
+import time
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
@@ -45,6 +46,9 @@ class RGB565Config:
     max_height: Optional[int] = None
     array_name: Optional[str] = None  # 用于C数组格式
     enabled: bool = True  # 是否启用RGB565转换，False则输出PNG
+    pack_bundle: bool = False  # 是否打包为bundle.bin
+    bundle_width: int = 120  # bundle帧宽度
+    bundle_height: int = 120  # bundle帧高度
 
     def to_converter_args(self) -> List[str]:
         """转换为converter命令行参数
@@ -204,7 +208,6 @@ class ConverterBridge:
             ConversionResult: 转换结果
         """
         try:
-            import time
             start_time = time.time()
 
             # 确保输出目录存在
@@ -228,6 +231,8 @@ class ConverterBridge:
                     cwd=str(self.converter_path.parent),
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',  # 明确指定UTF-8编码
+                    errors='replace',  # 遇到无法解码的字符用替换字符
                     timeout=300  # 5分钟超时
                 )
             except subprocess.TimeoutExpired:
@@ -247,7 +252,10 @@ class ConverterBridge:
 
             # 分析转换结果
             if result.returncode != 0:
-                error_msg = result.stderr.strip() or result.stdout.strip() or "转换失败，未知错误"
+                # 安全地处理可能为None的stderr和stdout
+                error_msg = (result.stderr.strip() if result.stderr else "") or \
+                           (result.stdout.strip() if result.stdout else "") or \
+                           "转换失败，未知错误"
                 return ConversionResult(
                     success=False,
                     rgb565_files=[],
@@ -318,9 +326,10 @@ class ConverterBridge:
         完整的转换流程：
         1. MP4转换器完成帧提取和图像处理
         2. 保存处理后的帧为临时PNG文件
-        3. 调用: uv run converter convert temp_dir/ output_dir/
-        4. 清理临时文件
-        5. 返回最终RGB565文件列表
+        3. 如果pack_bundle=True: 直接转换并打包为bundle.bin
+        4. 否则: 转换为单独的.bin文件
+        5. 清理临时文件
+        6. 返回最终文件列表
 
         Args:
             frames: 处理后的帧列表
@@ -335,6 +344,7 @@ class ConverterBridge:
             config = RGB565Config()
 
         temp_input_dir = None
+        temp_bin_dir = None
         try:
             # 1. 保存帧为临时PNG文件
             temp_files = self.save_frames_as_temp(frames, video_name)
@@ -345,8 +355,29 @@ class ConverterBridge:
 
             print(f"保存了 {len(temp_files)} 个临时帧文件到: {temp_input_dir}")
 
-            # 2. 调用现有converter进行转换
-            result = self.call_existing_converter(temp_input_dir, output_dir, config)
+            # 2. 根据是否需要打包选择不同的流程
+            if config.pack_bundle:
+                # 打包模式：先转换到临时目录，再打包到输出目录
+                temp_bin_dir = self._create_temp_dir()
+
+                # 转换PNG到临时.bin目录
+                result = self.call_existing_converter(temp_input_dir, temp_bin_dir, config)
+                if not result.success:
+                    return result
+
+                # 打包到最终输出目录
+                print(f"\n打包为bundle格式...")
+                bundle_path = output_dir / "bundle.bin"
+                bundle_result = self.pack_to_bundle_direct(temp_bin_dir, bundle_path, config)
+
+                # 记录临时bin目录用于清理
+                if temp_bin_dir not in self.temp_files_created:
+                    self.temp_files_created.append(temp_bin_dir)
+
+                result = bundle_result
+            else:
+                # 普通模式：直接转换到输出目录
+                result = self.call_existing_converter(temp_input_dir, output_dir, config)
 
             # 记录临时文件用于清理
             if temp_input_dir not in self.temp_files_created:
@@ -378,7 +409,6 @@ class ConverterBridge:
             ConversionResult: 转换结果
         """
         try:
-            import time
             start_time = time.time()
 
             # 确保输出目录存在
@@ -463,6 +493,170 @@ class ConverterBridge:
             max_height=max_height,
             array_name=array_name
         )
+
+    def pack_to_bundle(self, frames_dir: Path, config: RGB565Config) -> ConversionResult:
+        """将目录中的帧文件打包为bundle.bin
+
+        Args:
+            frames_dir: 包含.bin帧文件的目录
+            config: RGB565配置（包含bundle尺寸信息）
+
+        Returns:
+            ConversionResult: 打包结果
+        """
+        try:
+            start_time = time.time()
+
+            bundle_path = frames_dir / "bundle.bin"
+
+            # 构建pack命令
+            cmd = [
+                "uv", "run", "converter", "pack",
+                str(frames_dir),
+                str(bundle_path),
+                "--width", str(config.bundle_width),
+                "--height", str(config.bundle_height)
+            ]
+
+            print(f"执行打包命令: {' '.join(cmd)}")
+
+            # 执行打包
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=str(self.converter_path.parent),
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=300  # 5分钟超时
+                )
+            except subprocess.TimeoutExpired:
+                raise ConverterBridgeError("打包超时（5分钟）")
+
+            conversion_time = time.time() - start_time
+
+            if result.returncode != 0:
+                error_msg = (result.stderr.strip() if result.stderr else "") or \
+                           (result.stdout.strip() if result.stdout else "") or \
+                           "打包失败，未知错误"
+                return ConversionResult(
+                    success=False,
+                    rgb565_files=[],
+                    temp_files=[frames_dir],
+                    error_message=error_msg,
+                    conversion_time=conversion_time
+                )
+
+            if not bundle_path.exists():
+                return ConversionResult(
+                    success=False,
+                    rgb565_files=[],
+                    temp_files=[frames_dir],
+                    error_message="打包完成但未生成bundle文件",
+                    conversion_time=conversion_time
+                )
+
+            # 打包成功，删除单独的.bin文件（保留bundle.bin）
+            for bin_file in frames_dir.glob("*.bin"):
+                if bin_file.name != "bundle.bin" and bin_file.stem.isdigit():
+                    bin_file.unlink()
+                    print(f"删除临时文件: {bin_file.name}")
+
+            return ConversionResult(
+                success=True,
+                rgb565_files=[bundle_path],
+                temp_files=[frames_dir],
+                conversion_time=conversion_time,
+                frame_count=1  # bundle算作1个文件
+            )
+
+        except Exception as e:
+            if isinstance(e, ConverterBridgeError):
+                raise
+            raise ConverterBridgeError(f"打包bundle失败: {e}")
+
+    def pack_to_bundle_direct(self, frames_dir: Path, output_bundle: Path,
+                             config: RGB565Config) -> ConversionResult:
+        """将帧文件直接打包到指定路径的bundle.bin
+
+        Args:
+            frames_dir: 包含.bin帧文件的临时目录
+            output_bundle: 输出bundle文件的完整路径
+            config: RGB565配置（包含bundle尺寸信息）
+
+        Returns:
+            ConversionResult: 打包结果
+        """
+        try:
+            start_time = time.time()
+
+            # 确保输出目录存在
+            output_bundle.parent.mkdir(parents=True, exist_ok=True)
+
+            # 构建pack命令
+            cmd = [
+                "uv", "run", "converter", "pack",
+                str(frames_dir),
+                str(output_bundle),
+                "--width", str(config.bundle_width),
+                "--height", str(config.bundle_height)
+            ]
+
+            print(f"执行打包命令: {' '.join(cmd)}")
+
+            # 执行打包
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=str(self.converter_path.parent),
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    timeout=300  # 5分钟超时
+                )
+            except subprocess.TimeoutExpired:
+                raise ConverterBridgeError("打包超时（5分钟）")
+
+            conversion_time = time.time() - start_time
+
+            if result.returncode != 0:
+                error_msg = (result.stderr.strip() if result.stderr else "") or \
+                           (result.stdout.strip() if result.stdout else "") or \
+                           "打包失败，未知错误"
+                return ConversionResult(
+                    success=False,
+                    rgb565_files=[],
+                    temp_files=[frames_dir],
+                    error_message=error_msg,
+                    conversion_time=conversion_time
+                )
+
+            if not output_bundle.exists():
+                return ConversionResult(
+                    success=False,
+                    rgb565_files=[],
+                    temp_files=[frames_dir],
+                    error_message="打包完成但未生成bundle文件",
+                    conversion_time=conversion_time
+                )
+
+            print(f"✓ 成功打包到: {output_bundle}")
+            print(f"  文件大小: {output_bundle.stat().st_size / 1024 / 1024:.2f} MB")
+
+            return ConversionResult(
+                success=True,
+                rgb565_files=[output_bundle],
+                temp_files=[frames_dir],
+                conversion_time=conversion_time,
+                frame_count=1  # bundle算作1个文件
+            )
+
+        except Exception as e:
+            if isinstance(e, ConverterBridgeError):
+                raise
+            raise ConverterBridgeError(f"打包bundle失败: {e}")
 
     def __enter__(self):
         """上下文管理器入口"""

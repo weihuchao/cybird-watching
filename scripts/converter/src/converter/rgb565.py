@@ -181,3 +181,132 @@ class RGB565Converter:
         except Exception as e:
             print(f"转换图片 {image_path} 为C数组时出错: {e}")
             return False
+
+    @staticmethod
+    def pack_frames_to_bundle(frame_files: list[Path], output_bundle: Path,
+                              width: int = 120, height: int = 120) -> bool:
+        """
+        将多个帧文件打包为bundle.bin
+
+        Bundle文件格式:
+        - Bundle Header (64字节): magic, version, frame_count, 等元数据
+        - Frame Index (N×12字节): 每帧的offset, size, checksum
+        - Frame Data: 所有帧的LVGL 9.x格式数据
+
+        Args:
+            frame_files: 帧文件列表（按顺序，1.bin, 2.bin, ...）
+            output_bundle: 输出bundle文件路径
+            width: 帧宽度
+            height: 帧高度
+
+        Returns:
+            转换是否成功
+        """
+        try:
+            import zlib
+
+            if not frame_files:
+                print("错误: 没有提供帧文件")
+                return False
+
+            # 排序帧文件（按数字顺序）
+            frame_files = sorted(frame_files, key=lambda p: int(p.stem) if p.stem.isdigit() else 0)
+
+            frame_count = len(frame_files)
+            print(f"开始打包 {frame_count} 帧到 {output_bundle}")
+
+            # 常量定义
+            MAGIC = 0x42495244  # "BIRD"
+            VERSION = 1
+            COLOR_FORMAT_RGB565 = 0x12
+            HEADER_SIZE = 64
+            INDEX_ENTRY_SIZE = 12
+            INDEX_TABLE_SIZE = frame_count * INDEX_ENTRY_SIZE
+            DATA_OFFSET = HEADER_SIZE + INDEX_TABLE_SIZE
+
+            # 验证帧文件并收集信息
+            print("验证帧文件...")
+            frame_info_list = []
+            for i, frame_file in enumerate(frame_files):
+                if not frame_file.exists():
+                    print(f"错误: 帧文件不存在: {frame_file}")
+                    return False
+
+                # 读取并验证LVGL 9.x头部
+                with open(frame_file, 'rb') as f:
+                    if f.seek(0, 2) < 32:  # 检查文件大小
+                        print(f"错误: 帧文件太小: {frame_file}")
+                        return False
+
+                    f.seek(0)
+                    header_cf_bytes = f.read(4)
+                    if len(header_cf_bytes) != 4:
+                        print(f"错误: 无法读取帧头部: {frame_file}")
+                        return False
+
+                    header_cf = struct.unpack('<I', header_cf_bytes)[0]
+                    color_format = header_cf & 0xFF
+                    magic = (header_cf >> 24) & 0xFF
+
+                    if color_format != COLOR_FORMAT_RGB565 or magic != 0x37:
+                        print(f"错误: 无效的LVGL 9.x格式: {frame_file} (cf=0x{color_format:02X}, magic=0x{magic:02X})")
+                        return False
+
+                frame_size = frame_file.stat().st_size
+                frame_info_list.append({
+                    'path': frame_file,
+                    'size': frame_size,
+                    'offset': DATA_OFFSET + sum(info['size'] for info in frame_info_list)
+                })
+
+            # 计算总文件大小
+            total_data_size = sum(info['size'] for info in frame_info_list)
+            total_size = DATA_OFFSET + total_data_size
+
+            # 写入bundle文件
+            print(f"写入bundle文件 (总大小: {total_size / 1024 / 1024:.2f} MB)...")
+            with open(output_bundle, 'wb') as f:
+                # 1. 写入Bundle Header (64字节)
+                f.write(struct.pack('<I', MAGIC))                    # magic (4B)
+                f.write(struct.pack('<H', VERSION))                  # version (2B)
+                f.write(struct.pack('<H', frame_count))              # frame_count (2B)
+                f.write(struct.pack('<H', width))                    # frame_width (2B)
+                f.write(struct.pack('<H', height))                   # frame_height (2B)
+                f.write(struct.pack('<I', frame_info_list[0]['size']))  # frame_size (4B, 假设所有帧相同)
+                f.write(struct.pack('<I', HEADER_SIZE))              # index_offset (4B)
+                f.write(struct.pack('<I', DATA_OFFSET))              # data_offset (4B)
+                f.write(struct.pack('<I', total_size))               # total_size (4B)
+                f.write(struct.pack('<B', COLOR_FORMAT_RGB565))      # color_format (1B)
+                f.write(bytes(35))                                   # reserved (35B)
+
+                # 2. 写入Frame Index表 (N×12字节)
+                for frame_info in frame_info_list:
+                    # 计算帧数据的CRC32校验
+                    with open(frame_info['path'], 'rb') as frame_file:
+                        frame_data = frame_file.read()
+                        checksum = zlib.crc32(frame_data) & 0xFFFFFFFF
+
+                    f.write(struct.pack('<I', frame_info['offset']))  # offset (4B)
+                    f.write(struct.pack('<I', frame_info['size']))    # size (4B)
+                    f.write(struct.pack('<I', checksum))              # checksum (4B)
+
+                # 3. 写入所有帧数据
+                print("写入帧数据...")
+                for i, frame_info in enumerate(frame_info_list):
+                    with open(frame_info['path'], 'rb') as frame_file:
+                        frame_data = frame_file.read()
+                        f.write(frame_data)
+
+                    if (i + 1) % 10 == 0 or (i + 1) == frame_count:
+                        print(f"  已写入 {i + 1}/{frame_count} 帧")
+
+            print(f"✓ 成功打包 {frame_count} 帧")
+            print(f"  输出文件: {output_bundle}")
+            print(f"  文件大小: {total_size / 1024 / 1024:.2f} MB")
+            return True
+
+        except Exception as e:
+            print(f"打包帧文件时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False

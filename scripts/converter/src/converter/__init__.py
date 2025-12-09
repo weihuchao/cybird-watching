@@ -128,6 +128,54 @@ def single(input_file: Path, output_file: Path, max_width: Optional[int],
         click.echo("[ERROR] 转换失败!")
 
 
+@cli.command()
+@click.argument('source_dir', type=click.Path(exists=True, path_type=Path))
+@click.argument('output_bundle', type=click.Path(path_type=Path))
+@click.option('--width', type=int, default=120, help='帧宽度 (像素, 默认120)')
+@click.option('--height', type=int, default=120, help='帧高度 (像素, 默认120)')
+def pack(source_dir: Path, output_bundle: Path, width: int, height: int):
+    """
+    将目录中的帧文件打包为bundle.bin
+
+    SOURCE_DIR: 包含帧文件的源目录
+    OUTPUT_BUNDLE: 输出bundle文件路径 (如 bundle.bin)
+    """
+    from .rgb565 import RGB565Converter
+
+    # 查找所有数字命名的.bin文件
+    frame_files = sorted(
+        [f for f in source_dir.glob("*.bin") if f.stem.isdigit()],
+        key=lambda p: int(p.stem)
+    )
+
+    if not frame_files:
+        click.echo(f"[ERROR] 在 {source_dir} 中未找到帧文件")
+        return
+
+    click.echo(f"打包帧文件:")
+    click.echo(f"  源目录: {source_dir}")
+    click.echo(f"  帧数: {len(frame_files)}")
+    click.echo(f"  输出文件: {output_bundle}")
+    click.echo(f"  帧尺寸: {width}x{height}")
+    click.echo()
+
+    # 确保输出目录存在
+    output_bundle.parent.mkdir(parents=True, exist_ok=True)
+
+    # 执行打包
+    success = RGB565Converter.pack_frames_to_bundle(
+        frame_files=frame_files,
+        output_bundle=output_bundle,
+        width=width,
+        height=height
+    )
+
+    if success:
+        click.echo("\n[SUCCESS] 打包成功!")
+    else:
+        click.echo("\n[ERROR] 打包失败!")
+
+
 def main():
     """主入口函数"""
     cli()
