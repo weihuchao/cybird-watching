@@ -226,7 +226,7 @@ void lv_init_gui(void)
 		
 		// 设置版本号样式（灰色，不太明显）
 		lv_obj_set_style_text_color(logo_version_label, lv_color_hex(0x808080), LV_PART_MAIN);
-		lv_obj_set_style_text_font(logo_version_label, &lv_font_notosanssc_18, LV_PART_MAIN);
+		lv_obj_set_style_text_font(logo_version_label, &lv_font_notosanssc_12, LV_PART_MAIN);
 		
 		// 位置：底部居中，距离边缘 10 像素
 		lv_obj_align(logo_version_label, LV_ALIGN_BOTTOM_MID, 0, -10);
