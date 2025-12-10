@@ -5,7 +5,7 @@
 #include "drivers/io/rgb_led/rgb_led.h"
 #include "config/ui_texts.h"
 #include <cstdlib>
-#include <ctime>
+#include "esp_system.h"
 
 // 声明外部全局对象
 extern Pixel rgb;
@@ -60,9 +60,6 @@ bool BirdManager::initialize(lv_obj_t* display_obj) {
     // 保存显示对象引用
     display_obj_ = display_obj;
 
-    // 初始化随机数生成器
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-
     // 记录系统启动时间
     system_start_time_ = getCurrentTime();
     last_auto_trigger_time_ = system_start_time_;
@@ -73,6 +70,35 @@ bool BirdManager::initialize(lv_obj_t* display_obj) {
         LOG_ERROR("BIRD", "Failed to initialize bird watching subsystems");
         return false;
     }
+
+    // 初始化随机数生成器
+    // ESP32的std::rand()质量较差，这里仅用于记录种子信息
+    uint32_t raw_seed = system_start_time_;
+    if (statistics_) {
+        int total_encounters = statistics_->getTotalEncounters();
+        raw_seed = (raw_seed * 31) + total_encounters;
+    }
+    
+    // 使用ESP32硬件真随机数生成器(TRNG)作为种子
+    // 基于射频噪声，质量远超软件LCG
+    uint32_t hw_random = esp_random();
+    
+    // 日志输出
+    char seed_msg[256];
+    if (statistics_) {
+        int total_encounters = statistics_->getTotalEncounters();
+        snprintf(seed_msg, sizeof(seed_msg), 
+                 "Random seed: context=0x%08X (millis=%u, encounters=%d), HW_RNG=0x%08X", 
+                 raw_seed, system_start_time_, total_encounters, hw_random);
+    } else {
+        snprintf(seed_msg, sizeof(seed_msg), 
+                 "Random seed: context=0x%08X (millis only), HW_RNG=0x%08X", 
+                 raw_seed, hw_random);
+    }
+    LOG_INFO("BIRD", seed_msg);
+    
+    // 虽然我们主要使用esp_random()，但仍初始化rand()以备用
+    std::srand(hw_random);
 
     initialized_ = true;
     LOG_INFO("BIRD", "Bird Watching Manager initialized successfully");
@@ -405,8 +431,8 @@ void BirdManager::loadInitialBird() {
         // 有历史数据：随机选择一个已经遇见过的小鸟，不计数
         std::vector<uint16_t> encountered_birds = statistics_->getEncounteredBirdIds();
         if (!encountered_birds.empty()) {
-            // 随机选择一个
-            int random_index = std::rand() % encountered_birds.size();
+            // 使用硬件随机数选择
+            uint32_t random_index = esp_random() % encountered_birds.size();
             uint16_t bird_id = encountered_birds[random_index];
             
             LOG_INFO("BIRD", (String("Loading initial bird from history (ID: ") + String(bird_id) + ")").c_str());
@@ -583,8 +609,8 @@ void BirdManager::hideStatsView() {
         // 有历史数据：随机选择一个已经遇见过的小鸟，不计数
         std::vector<uint16_t> encountered_birds = statistics_->getEncounteredBirdIds();
         if (!encountered_birds.empty()) {
-            // 随机选择一个
-            int random_index = std::rand() % encountered_birds.size();
+            // 使用硬件随机数选择
+            uint32_t random_index = esp_random() % encountered_birds.size();
             uint16_t bird_id = encountered_birds[random_index];
             
             LOG_INFO("BIRD", (String("Displaying random encountered bird (ID: ") + String(bird_id) + ")").c_str());

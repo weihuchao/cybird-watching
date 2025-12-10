@@ -2,6 +2,7 @@
 #include "bird_utils.h"
 #include "system/logging/log_manager.h"
 #include "drivers/storage/sd_card/sd_card.h"
+#include "esp_system.h"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -91,8 +92,10 @@ BirdInfo BirdSelector::getRandomBird() {
         return BirdInfo();
     }
 
-    // 生成随机数
-    int random_weight = std::rand() % total_weight_;
+    // 使用ESP32硬件真随机数生成器(TRNG)
+    // 基于射频噪声，质量远超std::rand()
+    uint32_t hw_random = esp_random();
+    int random_weight = hw_random % total_weight_;
 
     int current_weight = 0;
     for (const auto& bird : birds_) {
