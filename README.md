@@ -4,6 +4,8 @@
 
 当前项目的所有基础来自于[稚晖君的HoloCubic项目](https://github.com/peng-zhihui/HoloCubic)。
 
+> 淘宝上搜索关键字“HoloCubic”、“稚晖君”就能找到很多出售整机的商家，各家都大差不差（我也是直接购买的硬件）。购买预装了[HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO)固件的版本即可。
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32%20PICO32-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Arduino-red.svg)
@@ -11,6 +13,7 @@
 ![Build](https://img.shields.io/badge/build-PlatformIO-orange.svg)
 
 **资源说明**
+
 本项目中附带的所有动画资源为网络资源通过 AI 生成的视频，如有侵权，请联系删除。
 
 

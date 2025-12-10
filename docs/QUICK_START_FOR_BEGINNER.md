@@ -6,14 +6,15 @@
 
 ### 1.1 硬件
 
-淘宝上搜索关键字“HoloCubic”、“稚晖君”就能找到很多出售整机的商家，各家都大差不差。购买预装了[HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO)固件的版本即可。
+淘宝上搜索关键字“HoloCubic”、“稚晖君”就能找到很多出售整机的商家，各家都大差不差（我也是直接购买的硬件）。购买预装了[HoloCubic_AIO](https://github.com/ClimbSnail/HoloCubic_AIO)固件的版本即可。
+
 
 最便捷的方式就是征求商家帮你把本项目的固件刷新到硬件上后再发货，就不需要自己动手了。
 
 
 ### 1.2 开发环境
 
-下载源码：[压缩包分享地址](https://pan.quark.cn/s/db0359f6f5f9)，或者直接从[github](https://github.com/Mangome/cybird-watching)上下载，解压到不包含中文的路径下。
+下载源码：[cybird-watching-main.zip](https://pan.quark.cn/s/db0359f6f5f9)，或者直接从[github](https://github.com/Mangome/cybird-watching)上下载，解压到不包含中文的路径下。
 
 安装Python，下载地址：[清华大学源 Python 3.14.2](https://mirrors.tuna.tsinghua.edu.cn/python/3.14.2/python-3.14.2.exe)
 
@@ -57,5 +58,7 @@ SD卡根目录/
 ![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/202512092336035.png)
 
 烧录过程中硬件会息屏，烧录完成后显示 `Cybird Watching` Logo 就烧录成功了。
-![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/202512092341687.png)
 
+![image.png](https://static-1317922524.cos.ap-guangzhou.myqcloud.com/static/20251210142252.png)
+
+Happy bird watching！
