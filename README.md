@@ -264,12 +264,9 @@ cybird-watching/
 │           │   │   ├── bird_animation.cpp    # 动画系统
 │           │   │   ├── bird_manager.cpp      # 小鸟管理器
 │           │   │   ├── bird_selector.cpp     # 小鸟选择器
-│           │   │   ├── bird_stats.cpp        # 统计系统
 │           │   │   ├── bird_utils.cpp        # 工具函数
 │           │   │   ├── bird_types.h          # 类型定义
 │           │   │   └── bird_watching.cpp     # 主模块
-│           │   └── ui/                   # UI 组件
-│           │       └── stats_view.cpp        # 统计视图
 │           └── resources/                # 资源文件
 │               ├── fonts/                # 嵌入字体
 │               └── images/               # 嵌入图片
@@ -294,7 +291,6 @@ cybird-watching/
 │   ├── DUAL_CORE_ARCHITECTURE.md         # 双核架构说明
 │   ├── BIRD_WATCHING_FLOW_DIAGRAM.md     # 流程图
 │   ├── bird_watching_test_guide.md       # 测试指南
-│   ├── STATS_VIEW_GUIDE.md               # 统计视图指南
 │   ├── FILE_TRANSFER_GUIDE.md            # 文件传输指南
 │   ├── CHANGE_FONT_SIZE.md               # 字体修改指南
 │   └── LVGL_9X_UPGRADE_ANALYSIS.md       # LVGL 升级分析
@@ -474,7 +470,6 @@ log lines 100
 ### 功能文档
 - [观鸟系统流程图](docs/BIRD_WATCHING_FLOW_DIAGRAM.md) - 系统流程详解
 - [测试指南](docs/bird_watching_test_guide.md) - 功能测试步骤
-- [统计视图指南](docs/STATS_VIEW_GUIDE.md) - 统计界面使用
 
 ### 工具文档
 - [CLI 工具使用](scripts/README_CLI_TOOLS.md) - 命令行工具指南

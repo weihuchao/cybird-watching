@@ -144,8 +144,6 @@ done
 ### 场景3：备份设备数据
 
 ```bash
-# 下载所有统计数据
-download /stats/bird_stats.json ./backup/bird_stats.json
 
 # 下载配置
 download /configs/bird_config.json ./backup/bird_config.json

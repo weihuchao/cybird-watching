@@ -32,12 +32,6 @@ bool initializeBirdWatching(lv_obj_t* display_obj) {
     return true;
 }
 
-void updateBirdWatching() {
-    if (g_birdManager) {
-        g_birdManager->update();
-    }
-}
-
 void processBirdTriggerRequest() {
     if (g_birdManager) {
         g_birdManager->processTriggerRequest();
@@ -66,36 +60,6 @@ void onGesture(int gesture_type) {
     }
 
     g_birdManager->onGestureEvent(gesture_type);
-}
-
-void showBirdStatistics() {
-    if (!g_birdManager) {
-        LOG_ERROR("BIRD", "Bird watching system not initialized");
-        return;
-    }
-
-    g_birdManager->showStatistics();
-}
-
-bool resetBirdStatistics() {
-    if (!g_birdManager) {
-        LOG_ERROR("BIRD", "Bird watching system not initialized");
-        return false;
-    }
-
-    // 获取统计对象并重置
-    BirdStatistics& stats = const_cast<BirdStatistics&>(g_birdManager->getStatistics());
-    stats.resetStats();
-    
-    // 立即保存到文件
-    bool saved = stats.saveToFile();
-    if (saved) {
-        LOG_INFO("BIRD", "Statistics reset and saved successfully");
-    } else {
-        LOG_ERROR("BIRD", "Statistics reset but failed to save to file");
-    }
-    
-    return saved;
 }
 
 void listBirds() {
@@ -150,20 +114,6 @@ bool isAnimationPlaying() {
         return false;
     }
     return g_birdManager->isPlaying();
-}
-
-bool isStatsViewVisible() {
-    if (!g_birdManager) {
-        return false;
-    }
-    return g_birdManager->isStatsViewVisible();
-}
-
-int getStatisticsCount() {
-    if (!g_birdManager) {
-        return 0;
-    }
-    return g_birdManager->getStatistics().getEncounteredBirdIds().size();
 }
 
 } // namespace BirdWatching

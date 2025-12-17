@@ -50,7 +50,6 @@ public:
 private:
     // 命令处理函数
     void handleLogCommand(const String& param);
-    void handleStatusCommand();
     void handleClearCommand();
     void handleTreeCommand(const String& param);
     void handleBirdCommand(const String& param);

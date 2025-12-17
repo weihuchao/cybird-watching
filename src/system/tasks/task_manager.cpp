@@ -259,10 +259,6 @@ void TaskManager::systemTaskFunction(void* parameter)
         while (xQueueReceive(manager->system_queue_, &msg, 0) == pdTRUE) {
             // 处理系统相关消息
             switch (msg.type) {
-                case MSG_SHOW_STATS:
-                    BirdWatching::showBirdStatistics();
-                    break;
-                
                 case MSG_GESTURE_EVENT:
                     // 处理手势事件
                     break;
@@ -320,9 +316,6 @@ void TaskManager::systemTaskFunction(void* parameter)
                 }
             }
         }
-
-        // 更新Bird Watching系统
-        BirdWatching::updateBirdWatching();
 
         // 处理串口命令
         SerialCommands::getInstance()->handleInput();

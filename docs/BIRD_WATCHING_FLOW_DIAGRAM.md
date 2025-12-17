@@ -31,8 +31,6 @@ graph TB
         
         I --> J[BirdAnimation初始化]
         I --> K[BirdSelector初始化]
-        I --> L[BirdStatistics初始化]
-        I --> M[StatsView初始化]
         I --> N[加载bird_config.csv]
         
         G3 --> O[触发小鸟动画]
@@ -86,8 +84,6 @@ flowchart TD
     
     ScanResources --> InitAnim[BirdAnimation初始化]
     ScanResources --> InitSelector[BirdSelector初始化]
-    ScanResources --> InitStats[BirdStatistics初始化]
-    ScanResources --> InitStatsView[StatsView初始化]
     
     InitAnim --> LoadConfig[加载bird_config.csv]
     InitSelector --> LoadConfig
@@ -219,7 +215,6 @@ flowchart TD
     CheckSave -->|否| MemOnly[仅内存更新]
 
     SaveFile --> BuildJSON[构建JSON数据]
-    BuildJSON --> WriteSD[写入/stats/bird_stats.json]
     WriteSD --> StatsEnd([统计完成])
     
     MemOnly --> StatsEnd
@@ -238,7 +233,6 @@ flowchart TD
 flowchart TD
     Enter([进入统计界面]) --> StopAnim[停止当前动画]
     StopAnim --> HideInfo[隐藏小鸟信息]
-    HideInfo --> CreateView[创建StatsView]
     
     CreateView --> LoadStats[加载统计数据]
     LoadStats --> CalcPages[计算总页数]
@@ -263,7 +257,6 @@ flowchart TD
     UpdateNext --> WaitGesture
     FlashRed --> WaitGesture
     
-    Exit --> DestroyView[销毁StatsView]
     DestroyView --> ShowBird[显示一只小鸟]
     ShowBird --> CheckHistory{有历史数据?}
     CheckHistory -->|是| RandomShow[随机显示已遇见小鸟]
@@ -372,7 +365,6 @@ flowchart TD
     AddMeta --> AddTimestamp[添加时间戳]
     AddTimestamp --> AddBirds[添加小鸟数据]
 
-    AddBirds --> OpenFile[打开stats/bird_stats.json]
     OpenFile --> FileCheck{文件打开成功?}
     
     FileCheck -->|否| CreateFile[创建新文件]
@@ -411,14 +403,11 @@ stateDiagram-v2
     Triggering --> AnimationPlaying: 播放动画
     AnimationPlaying --> IdleBird: 动画完成
     
-    IdleBird --> StatsView: 前倾1秒
-    StatsView --> Browsing: 浏览统计
     Browsing --> Browsing: 左右倾翻页
     Browsing --> IdleBird: 后倾1秒退出
     
     IdleBird --> ErrorState: 错误发生
     AnimationPlaying --> ErrorState: 错误发生
-    StatsView --> ErrorState: 错误发生
     ErrorState --> Recovery: 错误恢复
     Recovery --> IdleBird: 恢复完成
 ```
@@ -431,7 +420,7 @@ BirdWatching模块是一个完整的嵌入式观鸟应用系统，基于ESP32双
 - **双核FreeRTOS架构**: Core 0处理UI渲染，Core 1处理系统逻辑和传感器
 - **任务间通信**: 通过消息队列和互斥锁实现线程安全的跨核通信
 - **LVGL集成**: 使用互斥锁保护所有LVGL对象访问
-- **模块化设计**: BirdManager、BirdAnimation、BirdSelector、BirdStatistics独立模块
+- **模块化设计**: BirdManager、BirdAnimation、BirdSelector独立模块
 
 ### 交互方式
 - **IMU手势控制**:
@@ -471,18 +460,14 @@ src/applications/modules/bird_watching/
 │   ├── bird_manager.h/cpp       # 核心管理器
 │   ├── bird_animation.h/cpp     # 动画播放
 │   ├── bird_selector.h/cpp      # 选择算法
-│   ├── bird_stats.h/cpp         # 统计系统
 │   ├── bird_types.h             # 类型定义
 │   └── bird_utils.h/cpp         # 工具函数
-├── ui/
-│   └── stats_view.h/cpp         # 统计界面
 └── screens/
     └── bird_animation_bridge.h/cpp  # GUI桥接
 
 SD卡文件:
 ├── /configs/bird_config.csv     # 小鸟配置
 ├── /birds/{id}/                 # 小鸟图片资源
-└── /stats/bird_stats.json       # 统计数据
 ```
 
 该系统已完全集成到ESP32主项目中，作为独立的功能模块稳定运行，支持实时交互和数据持久化。

@@ -7,12 +7,9 @@
 // 前向声明Bird Watching便捷函数
 namespace BirdWatching {
     bool triggerBird(uint16_t bird_id = 0);
-    void showBirdStatistics();
-    bool resetBirdStatistics();
     void listBirds();
     bool isBirdManagerInitialized();
     bool isAnimationPlaying();
-    int getStatisticsCount();
 }
 
 // 静态成员初始化
@@ -87,10 +84,6 @@ void SerialCommands::handleInput() {
         }
         else if (command.equals("log")) {
             handleLogCommand(param);
-            commandFound = true;
-        }
-        else if (command.equals("status")) {
-            handleStatusCommand();
             commandFound = true;
         }
         else if (command.equals("clear")) {
@@ -235,32 +228,6 @@ void SerialCommands::handleLogCommand(const String& param) {
         Serial.println("Use 'log help' for available subcommands");
         Serial.println("<<<RESPONSE_END>>>");
         LOG_WARN("CMD", "Unknown log subcommand: " + param);
-    }
-}
-
-void SerialCommands::handleStatusCommand() {
-    // Start response marker
-    Serial.println("<<<RESPONSE_START>>>");
-
-    Serial.println("=== CybirdWatching System Status ===");
-    Serial.println("Firmware: " + String(FIRMWARE_VERSION_FULL));
-    Serial.println("Architecture: " + String(FIRMWARE_ARCHITECTURE));
-    Serial.println("Log Manager: " + String(logManager ? "OK" : "FAILED"));
-    Serial.println("SD Card: " + String(logManager->isSDCardAvailable() ? "Available" : "Not Available"));
-    Serial.println("Free Heap: " + String(ESP.getFreeHeap()) + " bytes");
-    Serial.println("Uptime: " + String(millis() / 1000) + " seconds");
-
-    unsigned long logSize = logManager->getLogFileSize();
-    Serial.println("Log file size: " + String(logSize) + " bytes");
-
-    Serial.println("Command system: " + String(commandEnabled ? "Enabled" : "Disabled"));
-
-    // End response marker
-    Serial.println("<<<RESPONSE_END>>>");
-
-    // Log to SD card only to avoid interference with command response
-    if (logManager) {
-        logManager->logToSDOnly(LogManager::LM_LOG_INFO, "CMD", "System status requested");
     }
 }
 
@@ -412,30 +379,6 @@ void SerialCommands::handleBirdCommand(const String& param) {
         Serial.println("=== Available Birds ===");
         BirdWatching::listBirds();
         Serial.println("=== End of List ===");
-    }
-    else if (param.equals("stats")) {
-        Serial.println("=== Bird Watching Statistics ===");
-        BirdWatching::showBirdStatistics();
-        Serial.println("=== End of Statistics ===");
-    }
-    else if (param.equals("status")) {
-        Serial.println("=== Bird Watching System Status ===");
-        if (BirdWatching::isBirdManagerInitialized()) {
-            Serial.println("Bird Manager: Initialized");
-            Serial.println("Animation System: " + String(BirdWatching::isAnimationPlaying() ? "Playing" : "Idle"));
-            Serial.println("Statistics Records: " + String(BirdWatching::getStatisticsCount()));
-        } else {
-            Serial.println("Bird Manager: NOT INITIALIZED");
-        }
-        Serial.println("=== End Status ===");
-    }
-    else if (param.equals("reset")) {
-        Serial.println("Resetting bird watching statistics...");
-        if (BirdWatching::resetBirdStatistics()) {
-            Serial.println("Statistics reset successfully and saved to file!");
-        } else {
-            Serial.println("Failed to reset statistics. Check if system is initialized.");
-        }
     }
     else {
         Serial.println("Unknown bird subcommand: " + param);

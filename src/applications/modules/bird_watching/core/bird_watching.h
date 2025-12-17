@@ -8,7 +8,6 @@
 #include "bird_manager.h"
 #include "bird_animation.h"
 #include "bird_selector.h"
-#include "bird_stats.h"
 #include "config/version.h"
 
 // 观鸟模块版本信息（使用固件统一版本）
@@ -26,9 +25,6 @@ namespace BirdWatching {
 // 便捷函数：初始化整个观鸟系统
 bool initializeBirdWatching(lv_obj_t* display_obj = nullptr);
 
-// 便捷函数：更新观鸟系统（在主循环中调用）
-void updateBirdWatching();
-
 // 便捷函数：处理触发请求(在UI任务中调用)
 void processBirdTriggerRequest();
 
@@ -39,20 +35,12 @@ bool triggerBird(uint16_t bird_id = 0);
 // 便捷函数：处理手势事件
 void onGesture(int gesture_type);
 
-// 便捷函数：获取观鸟统计
-void showBirdStatistics();
-
-// 便捷函数：重置观鸟统计
-bool resetBirdStatistics();
-
 // 便捷函数：列出所有可用小鸟
 void listBirds();
 
 // 便捷函数：检查系统状态
 bool isBirdManagerInitialized();
 bool isAnimationPlaying();
-bool isStatsViewVisible();
-int getStatisticsCount();
 
 // 全局观鸟管理器实例（外部声明）
 extern BirdManager* g_birdManager;

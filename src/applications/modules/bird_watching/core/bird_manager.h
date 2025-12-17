@@ -3,9 +3,7 @@
 
 #include "bird_animation.h"
 #include "bird_selector.h"
-#include "bird_stats.h"
 #include "bird_types.h"
-#include "../ui/stats_view.h"
 #include "drivers/sensors/imu/imu.h"
 #include <string>
 #include <vector>
@@ -53,9 +51,6 @@ public:
     // 处理手势事件
     void onGestureEvent(int gesture_type);
 
-    // 显示统计信息
-    void showStatistics();
-
     // 获取系统状态
     bool isInitialized() const { return initialized_; }
     bool isPlaying() const { return animation_ ? animation_->isPlaying() : false; }
@@ -65,29 +60,8 @@ public:
     void setConfig(const BirdConfig& config);
     void saveConfig();
 
-    // 获取统计信息
-    const BirdStatistics& getStatistics() const { return *statistics_; }
-
     // 获取小鸟列表
     const std::vector<BirdInfo>& getAllBirds() const;
-
-    // 显示小鸟信息（在右下角）
-    void showBirdInfo(uint16_t bird_id, const std::string& bird_name, bool is_new);
-
-    // 隐藏小鸟信息
-    void hideBirdInfo();
-    
-    // 检查并隐藏小鸟信息（如果超时）
-    void checkAndHideBirdInfo();
-    
-    // 显示/隐藏统计界面
-    void showStatsView();
-    void hideStatsView();
-    bool isStatsViewVisible() const;
-    
-    // 统计界面页面切换
-    void statsViewPreviousPage();
-    void statsViewNextPage();
 
 private:
     bool initialized_;                           // 初始化状态
@@ -95,8 +69,6 @@ private:
     BirdConfig config_;                          // 全局配置
     BirdAnimation* animation_;                   // 动画播放器
     BirdSelector* selector_;                     // 小鸟选择器
-    BirdStatistics* statistics_;                 // 统计系统
-    StatsView* stats_view_;                      // 统计界面
     lv_obj_t* display_obj_;                      // 显示对象（用于访问GUI）
 
     uint32_t last_auto_trigger_time_;            // 上次自动触发时间
@@ -127,9 +99,6 @@ private:
 
     // 更新手势检测
     void updateGestureDetection();
-
-    // 保存统计数据
-    void saveStatisticsIfNeeded();
 
     // 获取当前时间（毫秒）
     uint32_t getCurrentTime() const;
