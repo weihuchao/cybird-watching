@@ -120,7 +120,7 @@ void IMU::update(int interval)
 		// Debug output for MPU data - 用于调试左倾方向
 		static unsigned long last_debug_print = 0;
 		if (millis() - last_debug_print > 1000) { // 每秒打印一次
-			Serial.printf("MPU: ax=%d, ay=%d, az=%d\n", ax, ay, az);
+			// Serial.printf("MPU: ax=%d, ay=%d, az=%d\n", ax, ay, az);
 			last_debug_print = millis();
 		}
 	} else {

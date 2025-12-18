@@ -4,3 +4,11 @@ cmake-build-*/
 */__pycache__/
 
 .vscode/
+resources2/
+.idea/
+.env
+*.log
+*.tmp
+build/
+*.pyc
+.DS_Store

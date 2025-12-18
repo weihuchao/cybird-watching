@@ -165,11 +165,27 @@ void loop()
     static unsigned long lastStatsTime = 0;
     unsigned long currentTime = millis();
     
-    if (currentTime - lastStatsTime >= 60000) { // 每60秒打印一次
+    // 随机间隔 1..6 秒
+    static unsigned long statsIntervalMs = 0;
+    if (statsIntervalMs == 0) {
+        statsIntervalMs = 1000 + (esp_random() % 5001); // 1000..6000
+    }
+
+    if (currentTime - lastStatsTime >= statsIntervalMs) { // 每60秒打印一次
+    // if (currentTime - lastStatsTime >= 60000) { // 每60秒打印一次
         if (taskManager) {
-            taskManager->printTaskStats();
+            // taskManager->printTaskStats();
+
+            // 触发一次小鸟动画以测试任务间通信
+            LOG_INFO("TASK_LOOP", "Triggering bird animation");
+            TaskMessage msg;
+            msg.type = MSG_TRIGGER_BIRD;
+            taskManager->sendToUITask(msg);
         }
         lastStatsTime = currentTime;
+        
+        // 重新计算下一次间隔
+        statsIntervalMs = 1000 + (esp_random() % 5001);
     }
     
     // 让出CPU给FreeRTOS调度器
